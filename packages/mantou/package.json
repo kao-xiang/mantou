@@ -1,0 +1,47 @@
+{
+  "name": "mantou",
+  "module": "./dist/index.js",
+  "main": "./dist/index.js",
+  "version": "1.0.1",
+  "type": "module",
+  "types": "./types/index.d.ts",
+  "bin": {
+    "mantou": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "src/**/*.d.ts"
+  ],
+  "scripts": {
+    "dev:lib": "bun build --target=bun ./src/index.ts --outfile=dist/index.js --watch",
+    "dev:cli": "bun build --target=bun ./src/cli/index.ts --outfile=dist/cli/index.js --watch",
+    "dev:types": "tsc --watch --project tsconfig.types.json",
+    "dev": "concurrently -n lib,cli,types -c green,blue,magenta \"npm run dev:lib\" \"npm run dev:cli\" \"npm run dev:types\"",
+    "start": "bun ./src/index.ts",
+    "build": "bun build ./src/index.ts --outdir ./dist",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.1.1",
+    "@elysiajs/swagger": "^1.1.6",
+    "@types/lodash": "^4.17.13",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "chokidar": "^4.0.2",
+    "commander": "^12.1.0",
+    "concurrently": "^9.1.0",
+    "consola": "^3.2.3",
+    "dotenv": "^16.4.7",
+    "elysia": "^1.1.26",
+    "loadash": "^1.0.0",
+    "picocolors": "^1.1.1",
+    "reflect-metadata": "^0.2.2"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "mantou",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "bun build --target=bun ./src/index.ts --outfile=dist/index.js && bun run build:declaration",
+    "build:declaration": "tsc --emitDeclarationOnly --project tsconfig.types.json",
+    "postbuild": "rimraf tsconfig.types.tsbuildinfo"
+  },
+  "workspaces": ["packages/*"],
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/bun": "latest",
+    "globals": "^15.14.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.2.2",
+    "typescript-eslint": "^8.18.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "consola": "^3.2.3",
+    "eslint": "^9.17.0"
+  }
+}

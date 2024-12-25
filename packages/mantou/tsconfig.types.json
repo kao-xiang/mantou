@@ -1,0 +1,29 @@
+{
+    "compilerOptions": {
+      // Enable latest features
+      "lib": ["ESNext", "DOM"],
+      "target": "ESNext",
+      "module": "ESNext",
+      "moduleDetection": "force",
+      "allowJs": true,
+  
+      "declaration": true,
+      // Bundler mode
+      "moduleResolution": "bundler",
+      "verbatimModuleSyntax": true,
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["./src/*"]
+      },
+      "emitDeclarationOnly": true,
+      "declarationDir": "types",
+  
+      // Best practices
+      "strict": true,
+      "skipLibCheck": true,
+      "noFallthroughCasesInSwitch": true,
+    },
+    "include": ["./src/**/*"],
+    "exclude": ["node_modules", "dist", "types"]
+  }
+  

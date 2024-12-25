@@ -1,0 +1,28 @@
+{
+  "name": "create-mantou-app",
+  "module": "./dist/index.js",
+  "version": "1.0.1",
+  "bin": {
+    "create-mantou-app": "./dist/index.js"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "bun build --target=bun ./src/index.ts --outfile=dist/index.js --watch",
+    "build": "bun build --target=bun ./src/index.ts --outfile=dist/index.js"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/fs-extra": "^11.0.4",
+    "@types/prompts": "^2.4.9"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "fs-extra": "^11.2.0",
+    "picocolors": "^1.1.1",
+    "prompts": "^2.4.2",
+    "mantou": "workspace:*"
+  }
+}
