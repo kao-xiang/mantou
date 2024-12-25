@@ -469,9 +469,66 @@ Using mantou framework
 ```
 
 
-### 🧪 Testing
+### 🧪 Example Usage
 
-TODO
+```typescript
+import { guard, handler, t } from "mantou";
+
+const auth = (roles: string[]) =>
+  guard(async () => {
+    console.log("Auth guard: ", roles);
+    return true;
+  });
+
+export const get = handler(
+  (ctx) => {
+    return `Hello ${ctx.query.name}`;
+  },
+  {
+    query: t.Object({
+      name: t.String(),
+    }),
+  }
+);
+
+export const post = handler(
+  async (ctx) => {
+    const { name } = ctx.body;
+    return `Posted name: ${name}`;
+  },
+  {
+    body: t.Object({
+      name: t.String(),
+    }),
+  }
+);
+
+export const put = handler(
+  async (ctx) => {
+    const { id, name } = ctx.body;
+    return `Updated id: ${id} with name: ${name}`;
+  },
+  {
+    body: t.Object({
+      id: t.String(),
+      name: t.String(),
+    }),
+  }
+);
+
+export const del = handler(
+  async (ctx) => {
+    const { id } = ctx.query;
+    return `Deleted id: ${id}`;
+  },
+  {
+    query: t.Object({
+      id: t.String(),
+    }),
+  }
+);
+
+```
 
 
 ---
