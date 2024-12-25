@@ -43,5 +43,10 @@
     "loadash": "^1.0.0",
     "picocolors": "^1.1.1",
     "reflect-metadata": "^0.2.2"
+  },
+  "homepage": "https://github.com/ppenter/mantou",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ppenter/mantou.git"
   }
 }
