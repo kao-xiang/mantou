@@ -2,7 +2,7 @@
   "name": "mantou",
   "module": "./dist/index.js",
   "main": "./dist/index.js",
-  "version": "1.0.1",
+  "version": "1.0.5",
   "type": "module",
   "types": "./types/index.d.ts",
   "bin": {
@@ -18,8 +18,9 @@
     "dev:types": "tsc --watch --project tsconfig.types.json",
     "dev": "concurrently -n lib,cli,types -c green,blue,magenta \"npm run dev:lib\" \"npm run dev:cli\" \"npm run dev:types\"",
     "start": "bun ./src/index.ts",
-    "build": "bun build ./src/index.ts --outdir ./dist",
+    "build": "bun build --target=bun ./src/index.ts --outfile=dist/index.js && bun build --target=bun ./src/cli/index.ts --outfile=dist/cli/index.js",
     "typecheck": "tsc --noEmit",
+    "publishing": "bun run build && bun publish",
     "format": "prettier --write ."
   },
   "devDependencies": {
