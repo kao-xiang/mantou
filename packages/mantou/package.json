@@ -1,38 +1,18 @@
 {
   "name": "mantou",
-  "module": "./dist/index.js",
+  "version": "1.0.7",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ppenter/mantou.git"
+  },
   "main": "./dist/index.js",
-  "version": "1.0.5",
-  "type": "module",
-  "types": "./types/index.d.ts",
-  "bin": {
-    "mantou": "./dist/cli/index.js"
-  },
-  "files": [
-    "dist",
-    "src/**/*.d.ts"
-  ],
-  "scripts": {
-    "dev:lib": "bun build --target=bun ./src/index.ts --outfile=dist/index.js --watch",
-    "dev:cli": "bun build --target=bun ./src/cli/index.ts --outfile=dist/cli/index.js --watch",
-    "dev:types": "tsc --watch --project tsconfig.types.json",
-    "dev": "concurrently -n lib,cli,types -c green,blue,magenta \"npm run dev:lib\" \"npm run dev:cli\" \"npm run dev:types\"",
-    "start": "bun ./src/index.ts",
-    "build": "bun build --target=bun ./src/index.ts --outfile=dist/index.js && bun build --target=bun ./src/cli/index.ts --outfile=dist/cli/index.js",
-    "typecheck": "tsc --noEmit",
-    "publishing": "bun run build && bun publish",
-    "format": "prettier --write ."
-  },
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  },
+  "module": "./dist/index.js",
   "dependencies": {
     "@elysiajs/cors": "^1.1.1",
+    "@elysiajs/static": "^1.2.0",
     "@elysiajs/swagger": "^1.1.6",
     "@types/lodash": "^4.17.13",
+    "@vitejs/plugin-react": "^4.3.4",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "chokidar": "^4.0.2",
@@ -43,11 +23,45 @@
     "elysia": "^1.1.26",
     "loadash": "^1.0.0",
     "picocolors": "^1.1.1",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "typescript": "^5.0.0",
+    "vite": "^6.0.7"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19.0.3",
+    "@types/react-dom": "^19.0.2"
+  },
+  "bin": {
+    "mantou": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "src/**/*.d.ts"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
   },
   "homepage": "https://github.com/ppenter/mantou",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/ppenter/mantou.git"
-  }
+  "scripts": {
+    "dev:lib": "bun build --target=bun ./src/index.ts --outfile=dist/index.js --external 'react-dom,react,react-router' --watch",
+    "dev:cli": "bun build --target=bun ./src/cli/index.ts --outfile=dist/cli/index.js --external 'react-dom,react,react-router' --watch",
+    "dev:jsx-runtime": "bun build --target=bun ./src/jsx-runtime/index.ts --outfile=dist/jsx-runtime/index.js --external 'react-dom,react,react-router' --watch",
+    "dev:types": "tsc --watch --project tsconfig.types.json",
+    "build:lib": "bun build --target=bun ./src/index.ts --outfile=dist/index.js --external 'react-dom,react,react-router'",
+    "build:cli": "bun build --target=bun ./src/cli/index.ts --outfile=dist/cli/index.js --external 'react-dom,react,react-router'",
+    "build:jsx-runtime": "bun build --target=bun ./src/jsx-runtime/index.ts --outfile=dist/jsx-runtime/index.js --external 'react-dom,react,react-router'",
+    "build:types": "tsc --project tsconfig.types.json",
+    "dev": "concurrently -n lib,cli,jsx-runtime,types -c blue,green,yellow,magenta 'bun run dev:lib' 'bun run dev:cli' 'bun run dev:jsx-runtime' 'bun run dev:types'",
+    "start": "bun ./src/index.ts",
+    "build": "bun run build:lib && bun run build:cli && bun run build:jsx-runtime && bun run build:types",
+    "typecheck": "tsc --noEmit",
+    "publishing": "bun run build && bun publish",
+    "format": "prettier --write ."
+  },
+  "type": "module",
+  "types": "./types/index.d.ts"
 }

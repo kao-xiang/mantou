@@ -6,6 +6,7 @@
     "module": "ESNext",
     "moduleDetection": "force",
     "allowJs": true,
+    "jsx": "preserve",
 
     "declaration": true,
     // Bundler mode

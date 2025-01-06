@@ -9,10 +9,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "mantou": "latest"
+    "mantou": "link:mantou"
   },
   "devDependencies": {
     "bun-types": "latest",
     "typescript": "^5.0.0"
+  },
+  "resolutions": {
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
   }
 }

@@ -1,34 +1,22 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    // Enable latest features
-    "lib": ["ESNext", "DOM"],
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleDetection": "force",
-    "allowJs": true,
-
-    "declaration": true,
-    // Bundler mode
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "noEmit": true,
-    "baseUrl": ".",
+    "jsx": "react-jsx",
+    "baseUrl": "./src",
     "paths": {
-      "@/*": ["./src/*"]
-    },
-    "outDir": "dist",
-    "declarationDir": "types",
-
-    // Best practices
-    "strict": true,
-    "skipLibCheck": true,
-    "noFallthroughCasesInSwitch": true,
-
-    // Some stricter flags (disabled by default)
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
+      "@/*": ["*"]
+    }
   },
-  "include": ["src/**/*"],
+  "include": ["src", "cli.*", "dist/jsx-runtime"],
+  "exclude": [
+    "node_modules",
+    "out",
+    "server",
+    "client",
+    "test",
+    "jsx-runtime",
+    "jsx-dev-runtime",
+    "**/out",
+    "**/__fixtures__"
+  ]
 }

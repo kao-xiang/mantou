@@ -1,34 +1,26 @@
 {
   "compilerOptions": {
-    // Enable latest features
-    "lib": ["ESNext", "DOM"],
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleDetection": "force",
-    "allowJs": true,
-
-    "declaration": true,
-    // Bundler mode
+    "baseUrl": "./src",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "module": "esnext",
+    "target": "esnext",
     "moduleResolution": "bundler",
+    "moduleDetection": "force",
     "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
     "noEmit": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
-    "outDir": "dist",
-    "declarationDir": "types",
-
-    // Best practices
+    "composite": true,
     "strict": true,
+    "downlevelIteration": true,
     "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": true,
+    "verbatimModuleSyntax": true,
     "noFallthroughCasesInSwitch": true,
-
-    // Some stricter flags (disabled by default)
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
-  },
-  "include": ["src/**/*"],
+    "types": ["mantou"],
+    "paths": {
+      "@/*": ["*"]
+    }
+  }
 }

@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "consola": "^3.2.3",
-    "eslint": "^9.17.0"
+    "eslint": "^9.17.0",
+    "react-dom": "^19.0.0"
   }
 }

@@ -11,4 +11,6 @@ export interface ServerOptions<Path extends string = any> {
     cors?: {
         origin?: string | string[];
     };
+    outputDir?: string;
+    apiPrefix?: string;
 }
