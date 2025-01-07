@@ -13,6 +13,7 @@ import { RouteResolver } from '@/core/file-base-router';
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import { staticPlugin } from '@elysiajs/static';
+import { glob } from "glob";
 
 let projectReact: typeof import('react')
 let projectReactDOMServer: typeof import('react-dom/server')
@@ -92,6 +93,10 @@ export async function buildRoutes(
   baseDir = "./src",
   config?: ServerOptions,
 ): Promise<Elysia> {
+  const resolver = new RouteResolver(config || { baseDir });
+  const { routes, middlewares } = await resolver.resolveRoutes();
+
+  await resolver.buildApp();
 
   try{
     app.use(staticPlugin({
@@ -109,32 +114,73 @@ export async function buildRoutes(
     console.log(e)
   }
 
-  // app.get('/dist/*', ({ path, params }) => {
-  //   return file(process.cwd() + `/dist/${params["*"]}`)
-  // })
-  // app.get('public/*', ({ path, params }) => {
-  //   return file(process.cwd() + `/public/${params["*"]}`)
-  // })
-  app.use(
-    swagger({
-      ...config?.swagger,
-      exclude: ["node_modules", "build", "dist", "src"],
-      excludeMethods: ["OPTIONS"],
-    })
-  );
-
-  const resolver = new RouteResolver(config || { baseDir });
-  const { routes, middlewares } = await resolver.resolveRoutes();
-
-  await resolver.buildApp();
-
   await loadProjectReact(process.cwd());
 
+  for(const page of resolver.pages) {
+    app.get(page.path, async (ctx) => {
+      try {
+        const ImportedApp = await import(path.resolve(config?.outputDir || "./dist", `App.tsx?imported=${Date.now()}`));
+        const Component = ImportedApp.default
+  
+        if(!projectReact || !projectReactDOMServer || !projectReactRouter) {
+          await loadProjectReact(process.cwd());
+        }
+  
+        const data = await resolver.getRouteByPath(ctx.path)?.routeData?.data?.();
+  
+        const content = projectReactDOMServer?.renderToString(
+          projectReact?.createElement(projectReactRouter.StaticRouter, {
+            location: ctx.path,
+          }, projectReact?.createElement(Component, { data })
+          ),
+        )
+
+        const csss = glob.sync(process.cwd() + '/dist/*.css').map((file) => {
+          return `<link rel="stylesheet" href="/dist/${file.split('/').pop()}" />`
+        }).join('\n')
+
+        const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Document</title>
+            ${csss}
+          </head>
+          <body>
+            <div id="root">${content}</div>
+            <script src="/dist/index.js?a=${Date.now()}" type="module"></script>
+            <script>
+              window.__INITIAL_DATA__ = ${JSON.stringify(data)}
+            </script>
+          </body>
+        </html>
+        `
+
+        return new Response(html, {
+          headers: { 'Content-Type': 'text/html' },
+        })
+      } catch (error) {
+        console.log(error)
+        throw error;
+      }
+    }, {
+      detail: {
+        hide: true,
+      }
+    })
+  }
+  
   for (const route of routes) {
-    if (!route.path?.startsWith(config?.apiPrefix || "/api")) {
+    const routePath = route.path?.startsWith("/") ? route.path : `/${route.path}`;
+    if(resolver.pages.find(page => page.path === routePath)) {
       continue;
     }
-    (app as any)[route.method](route.path, route.handler, {
+    (app as any)[route.method](routePath, async (ctx: any) => {
+      const handler = await import(route.filePath)
+      return await handler[route.method]?.handler(ctx)
+    }, {
       beforeHandle: async (context: any) => {
         // Apply matching middlewares
         const applicableMiddlewares = middlewares
@@ -178,55 +224,6 @@ export async function buildRoutes(
     });
   }
 
-
-
-  app.get("*", async (ctx) => {
-    try {
-      // clear import cache
-      const ImportedApp = await import(path.resolve("./dist", `App.tsx?imported=${Date.now()}`));
-      const Component = ImportedApp.default
-
-      if(!projectReact || !projectReactDOMServer || !projectReactRouter) {
-        await loadProjectReact(process.cwd());
-      }
-
-      const data = await resolver.getRouteByPath(ctx.path)?.routeData?.data?.();
-
-      const content = projectReactDOMServer?.renderToString(
-        projectReact?.createElement(projectReactRouter.StaticRouter, {
-          location: ctx.path,
-        }, projectReact?.createElement(Component, { data })
-        ),
-      )
-
-      const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Document</title>
-        </head>
-        <body>
-          <div id="root">${content}</div>
-          <script src="/dist/index.js" type="module"></script>
-          <script>
-            window.__INITIAL_DATA__ = ${JSON.stringify(data)}
-          </script>
-        </body>
-      </html>
-      `
-
-      return new Response(html, {
-        headers: { 'Content-Type': 'text/html' },
-      })
-    } catch (error) {
-      console.log(error)
-      throw error;
-    }
-
-  });
-
   return app;
 }
 
@@ -235,6 +232,7 @@ export const startServer = async (_options: ServerOptions) => {
   const app = new Elysia()
 
   if(options?.swagger) {
+    logger.info(`Swagger enabled at ${options.swagger.path}`)
     app
       .use(swagger({
         ...options.swagger,
@@ -248,7 +246,7 @@ export const startServer = async (_options: ServerOptions) => {
   await buildRoutes(app, path.resolve(options.baseDir || ""), options)
 
   app.listen(options.port || 3000, () => {
-    logger.info(`🚀 Server started on http://${options.host}:${options.port}`)
+    logger.info(`🍞 Server started on http://${options.host}:${options.port}`)
   })
 
   return app

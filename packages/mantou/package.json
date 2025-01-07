@@ -1,6 +1,6 @@
 {
   "name": "mantou",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ppenter/mantou.git"
@@ -42,22 +42,21 @@
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "require": "./dist/index.js"
+      "require": "./dist/index.js",
+      "types": "./types/index.d.ts"
     }
   },
   "homepage": "https://github.com/ppenter/mantou",
   "scripts": {
     "dev:lib": "bun build --target=bun ./src/index.ts --outfile=dist/index.js --watch --minify",
     "dev:cli": "bun build --target=bun ./src/cli/index.ts --outfile=dist/cli/index.js --watch --minify",
-    "dev:jsx-runtime": "bun build --target=bun ./src/jsx-runtime/index.ts --outfile=dist/jsx-runtime/index.js --external 'react-dom,react,react-router' --watch",
     "dev:types": "tsc --watch --project tsconfig.types.json",
     "build:lib": "bun build --target=bun ./src/index.ts --outfile=dist/index.js --external 'react-dom,react,react-router'",
     "build:cli": "bun build --target=bun ./src/cli/index.ts --outfile=dist/cli/index.js --external 'react-dom,react,react-router'",
-    "build:jsx-runtime": "bun build --target=bun ./src/jsx-runtime/index.ts --outfile=dist/jsx-runtime/index.js --external 'react-dom,react,react-router'",
     "build:types": "tsc --project tsconfig.types.json",
-    "dev": "concurrently -n lib,cli,jsx-runtime,types -c blue,green,yellow,magenta 'bun run dev:lib' 'bun run dev:cli' 'bun run dev:jsx-runtime' 'bun run dev:types'",
+    "dev": "concurrently -n lib,cli,types -c blue,green,yellow,magenta 'bun run dev:lib' 'bun run dev:cli' 'bun run dev:types'",
     "start": "bun ./src/index.ts",
-    "build": "bun run build:lib && bun run build:cli && bun run build:jsx-runtime && bun run build:types",
+    "build": "bun run build:lib && bun run build:cli && bun run build:types",
     "typecheck": "tsc --noEmit",
     "publishing": "bun run build && bun publish",
     "format": "prettier --write ."

@@ -8,7 +8,7 @@ const defaultOptions: ServerOptions = {
   ssl: process.env.SSL === 'true',
   host: process.env.HOST || 'localhost',
   swagger: {
-    path: "/swagger" as any,
+    path: "/docs" as any,
     documentation: {
       info: {
         title: "API Documentation",

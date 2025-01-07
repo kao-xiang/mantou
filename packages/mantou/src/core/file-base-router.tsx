@@ -5,6 +5,7 @@ import type { ServerOptions } from "@/types/server";
 import fs from "fs/promises";
 import { writeRecursive } from "@/lib/fs";
 
+
 // Types
 type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
 type ContentType =
@@ -24,7 +25,11 @@ interface BaseContext {
   set: {
     headers: (headers: Record<string, string>) => void;
     status: (status: number) => void;
-    cookie: (name: string, value: string, options?: Record<string, any>) => void;
+    cookie: (
+      name: string,
+      value: string,
+      options?: Record<string, any>
+    ) => void;
   };
   store: Record<string, any>;
   url: string;
@@ -98,8 +103,12 @@ interface MiddlewareConfig<TConfig extends HandlerConfig = any> {
 
 type Context<TConfig extends HandlerConfig> = BaseContext & {
   body: TConfig["body"] extends TSchema ? Static<TConfig["body"]> : undefined;
-  query: TConfig["query"] extends TSchema ? Static<TConfig["query"]> : undefined;
-  params: TConfig["params"] extends TSchema ? Static<TConfig["params"]> : undefined;
+  query: TConfig["query"] extends TSchema
+    ? Static<TConfig["query"]>
+    : undefined;
+  params: TConfig["params"] extends TSchema
+    ? Static<TConfig["params"]>
+    : undefined;
 };
 
 type RouteHandlerFunction<TConfig extends HandlerConfig> = (
@@ -107,7 +116,13 @@ type RouteHandlerFunction<TConfig extends HandlerConfig> = (
 ) => Promise<any> | any;
 
 // Constants
-const HTTP_METHODS: readonly HttpMethod[] = ["get", "post", "put", "patch", "delete"];
+const HTTP_METHODS: readonly HttpMethod[] = [
+  "get",
+  "post",
+  "put",
+  "patch",
+  "delete",
+];
 
 // Route Resolution
 export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
@@ -126,7 +141,7 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
   }
 
   private normalizePath(rawPath: string): string {
-    return (
+    let newPath =
       rawPath
         .replace(/\\/g, "/")
         .replace(/\.ts$|\.js$/, "")
@@ -137,62 +152,77 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
         .replace(/^\/+|\/+$/g, "")
         .replace(/\((.*?)\)/g, "")
         .replace(/\/+/g, "/")
-        .replace(/\/$/, "") || "/"
-    );
+        .replace(/\/$/, "") || "/";
+
+    if (!newPath.startsWith("/")) {
+      newPath = `/${newPath}`;
+    }
+    return newPath;
   }
 
   getRouteGroup(filePath: string): string {
     const match = filePath.match(/src\/\((.*?)\)/);
-    return match ? match[1] : '';
+    return match ? match[1] : "";
   }
 
   findMatchingLayouts(page: Page, layouts: Layout[]): string[] {
     const pageGroup = this.getRouteGroup(page.filePath);
     const pagePath = page.path;
-    
-    const rootLayout = layouts.find(layout => 
-      this.getRouteGroup(layout.filePath) === pageGroup && 
-      layout.path === "/"
+
+    const rootLayout = layouts.find(
+      (layout) =>
+        this.getRouteGroup(layout.filePath) === pageGroup && layout.path === "/"
     );
-  
+
     const matchingLayouts = layouts
-      .filter(layout => {
+      .filter((layout) => {
         if (layout === rootLayout) return false;
-        
+
         const layoutGroup = this.getRouteGroup(layout.filePath);
         if (layoutGroup !== pageGroup) return false;
-        
-        return pagePath === layout.path || pagePath.startsWith(layout.path + '/');
+
+        return (
+          pagePath === layout.path || pagePath.startsWith(layout.path + "/")
+        );
       })
       .sort((a, b) => b.path.length - a.path.length)
-      .map(layout => layout.filePath);
-  
+      .map((layout) => layout.filePath);
+
     if (rootLayout) {
       matchingLayouts.push(rootLayout.filePath);
     }
-  
+
     return matchingLayouts;
   }
 
-  public async combinePageLayouts(layouts: Layout[], pages: Page[]): Promise<PageLayout[]> {
+  public async combinePageLayouts(
+    layouts: Layout[],
+    pages: Page[]
+  ): Promise<PageLayout[]> {
     const combinedRoutes: PageLayout[] = [];
-  
-    pages.forEach(page => {
+
+    pages.forEach((page) => {
       const matchingLayouts = this.findMatchingLayouts(page, layouts);
       combinedRoutes.push({
         path: page.path,
         element: {
           page: page.filePath,
-          layouts: matchingLayouts
-        }
+          layouts: matchingLayouts,
+        },
       });
     });
-  
+
     return combinedRoutes;
   }
 
   public async buildApp() {
-    const outputDir = path.resolve(process.cwd(), this.config.outputDir || "./dist");
+    const outputDir = path.resolve(
+      process.cwd(),
+      this.config.outputDir || "./dist"
+    );
+
+    // delete existing output directory
+    await fs.rm(outputDir, { recursive: true, force: true });
     const files = glob.sync("**/*.{ts,js,tsx,jsx}", {
       cwd: this.routesDir,
       ignore: ["**/*.d.ts", "**/*.test.ts", "**/*.spec.ts", "_*/**"],
@@ -207,11 +237,13 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
     const uniqueImports = new Set<string>();
     const routeDataMap = new Map<string, string>();
 
-    this.pageLayouts.forEach(route => {
+    this.pageLayouts.forEach((route) => {
       uniqueImports.add(route.element.page);
-      route.element.layouts?.forEach(layout => uniqueImports.add(layout));
+      route.element.layouts?.forEach((layout) => uniqueImports.add(layout));
 
-      const matchingRoute = this.routes.find(r => r.path === route.path && r.routeData);
+      const matchingRoute = this.routes.find(
+        (r) => r.path === route.path && r.routeData
+      );
       if (matchingRoute?.routeData) {
         routeDataMap.set(route.path, matchingRoute.filePath);
       }
@@ -220,7 +252,7 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
     // Generate imports and import map
     const importMap = new Map<string, string>();
     Array.from(uniqueImports).forEach((filePath, index) => {
-      const isLayout = filePath.includes('layout');
+      const isLayout = filePath.includes("layout");
       const componentName = isLayout ? `Layout${index}` : `Page${index}`;
       importMap.set(filePath, componentName);
       appContent += `import ${componentName} from '${filePath}'\n`;
@@ -229,9 +261,10 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
     // Group routes by root layout
     const groupRoutes = () => {
       const groups = new Map<string, PageLayout[]>();
-      
-      this.pageLayouts.forEach(route => {
-        const rootLayout = route.element.layouts?.[route.element.layouts.length - 1];
+
+      this.pageLayouts.forEach((route) => {
+        const rootLayout =
+          route.element.layouts?.[route.element.layouts.length - 1];
         if (rootLayout) {
           const group = this.getRouteGroup(rootLayout);
           if (!groups.has(group)) {
@@ -240,68 +273,85 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
           groups.get(group)!.push(route);
         }
       });
-      
+
       return groups;
     };
 
     // Generate routes for a group
     const generateGroupRoutes = (routes: PageLayout[]): string => {
-      if (routes.length === 0) return '';
+      if (routes.length === 0) return "";
 
-      const rootLayout = routes[0].element.layouts?.[routes[0].element.layouts.length - 1];
-      if (!rootLayout) return '';
+      const rootLayout =
+        routes[0].element.layouts?.[routes[0].element.layouts.length - 1];
+      if (!rootLayout) return "";
 
       const rootLayoutComponent = importMap.get(rootLayout);
       let jsxContent = `\n        <Route path="" element={<${rootLayoutComponent}><Outlet /></${rootLayoutComponent}>}>`;
 
       const getNestedPath = (fullPath: string, parentPath: string) => {
-        if (fullPath === '/') return '';
-        return parentPath === '/' ? fullPath.slice(1) : fullPath.slice(parentPath.length + 1);
+        if (fullPath === "/") return "";
+        return parentPath === "/"
+          ? fullPath.slice(1)
+          : fullPath.slice(parentPath.length + 1);
       };
 
       const addInitialData = (path: string) => {
-        if(routeDataMap.has(path)) {
+        if (routeDataMap.has(path)) {
           return `data={data}`;
-        }else{
-          return '';
+        } else {
+          return "";
         }
-      }
+      };
 
-      routes.forEach(route => {
+      routes.forEach((route) => {
         const { page, layouts = [] } = route.element;
         const pageComponent = importMap.get(page);
 
-        if (route.path === '/') {
-          jsxContent += `\n          <Route index element={<${pageComponent} ${addInitialData(route.path)} />} />`;
+        if (route.path === "/") {
+          jsxContent += `\n          <Route index element={<${pageComponent} ${addInitialData(
+            route.path
+          )} />} />`;
         } else if (layouts.length === 1) {
-          jsxContent += `\n          <Route path="${route.path.slice(1)}" element={<${pageComponent} ${addInitialData(route.path)} />} />`;
+          jsxContent += `\n          <Route path="${route.path.slice(
+            1
+          )}" element={<${pageComponent} ${addInitialData(route.path)} />} />`;
         } else {
-          let currentPath = '/';
+          let currentPath = "/";
           for (let i = layouts.length - 2; i >= 0; i--) {
             const layout = layouts[i];
             const layoutComponent = importMap.get(layout);
             const layoutPath = this.getPathFromLayout(layout);
             const nestedPath = getNestedPath(layoutPath, currentPath);
-            
+
             if (i === 0) {
               const finalPath = getNestedPath(route.path, layoutPath);
-              jsxContent += `\n          <Route path="${nestedPath}" element={<${layoutComponent} ${addInitialData(route.path)}><Outlet ${addInitialData(route.path)} /></${layoutComponent}>}>`;
-              jsxContent += `\n            <Route path="${finalPath}" element={<${pageComponent} ${addInitialData(route.path)} />} />`;
+              jsxContent += `\n          <Route path="${nestedPath}" element={<${layoutComponent} ${addInitialData(
+                route.path
+              )}><Outlet ${addInitialData(
+                route.path
+              )} /></${layoutComponent}>}>`;
+              jsxContent += `\n            <Route path="${finalPath}" element={<${pageComponent} ${addInitialData(
+                route.path
+              )} />} />`;
               jsxContent += `\n          </Route>`;
             } else {
-              jsxContent += `\n          <Route path="${nestedPath}" element={<${layoutComponent} ${addInitialData(route.path)}><Outlet ${addInitialData(route.path)} /></${layoutComponent}>}>`;
+              jsxContent += `\n          <Route path="${nestedPath}" element={<${layoutComponent} ${addInitialData(
+                route.path
+              )}><Outlet ${addInitialData(
+                route.path
+              )} /></${layoutComponent}>}>`;
             }
             currentPath = layoutPath;
           }
         }
       });
 
-      jsxContent += '\n        </Route>';
+      jsxContent += "\n        </Route>";
       return jsxContent;
     };
 
     const routeGroups = groupRoutes();
-    let routesJSX = '';
+    let routesJSX = "";
     routeGroups.forEach((routes) => {
       routesJSX += generateGroupRoutes(routes);
     });
@@ -332,19 +382,19 @@ ReactDOM.createRoot(root).render(
 
     await writeRecursive(path.resolve(outputDir, "App.tsx"), appContent);
     await writeRecursive(path.resolve(outputDir, "index.tsx"), indexContent);
-    
+
     await Bun.build({
       entrypoints: [path.resolve(outputDir, "index.tsx")],
       outdir: path.resolve(outputDir),
     });
-    
+
     await fs.unlink(path.resolve(outputDir, "index.tsx"));
   }
 
   private getPathFromLayout(layoutPath: string): string {
-    const parts = layoutPath.split('/');
+    const parts = layoutPath.split("/");
     const layoutDir = parts[parts.length - 2];
-    return layoutDir.startsWith('(') ? '/' : `/${layoutDir}`;
+    return layoutDir.startsWith("(") ? "/" : `/${layoutDir}`;
   }
 
   private filePathToRoutePath(filePath: string): string {
@@ -363,10 +413,10 @@ ReactDOM.createRoot(root).render(
   }
 
   private async processRoute(file: string): Promise<void> {
-    const module = await import(file);
+    const module = await import(path.resolve(`${file}?imported=${Date.now()}`));
     const routePath = this.filePathToRoutePath(file);
 
-    if(this.routes.find(route => route.path === routePath)) {
+    if (this.routes.find((route) => route.path === routePath)) {
       return;
     }
 
@@ -382,27 +432,27 @@ ReactDOM.createRoot(root).render(
           handler: module[method]?.handler,
           config: module[method]?.config,
           guards: module[method]?.guards ?? [],
-          routeData
+          routeData,
         });
       }
     }
 
     // If there's only data export (no HTTP methods), still create a route
-    if (!HTTP_METHODS.some(method => method in module) && module.data) {
+    if (!HTTP_METHODS.some((method) => method in module) && module.data) {
       this.routes.push({
         filePath: file,
         path: routePath,
-        method: 'get',
+        method: "get",
         handler: async () => ({}),
         config: {} as R,
         guards: [],
-        routeData: { data: module.data }
+        routeData: { data: module.data },
       });
     }
   }
 
   private async processPage(file: string): Promise<void> {
-    if(this.pages.find(page => page.filePath === file)) {
+    if (this.pages.find((page) => page.filePath === file)) {
       return;
     }
     this.pages.push({
@@ -412,7 +462,7 @@ ReactDOM.createRoot(root).render(
   }
 
   private async processLayout(file: string): Promise<void> {
-    if(this.layouts.find(layout => layout.filePath === file)) {
+    if (this.layouts.find((layout) => layout.filePath === file)) {
       return;
     }
     for (const existingLayout of this.layouts.sort(
@@ -499,13 +549,15 @@ ReactDOM.createRoot(root).render(
     this.pageLayouts = await this.combinePageLayouts(this.layouts, this.pages);
 
     // check duplicate paths
-    for(const pageLayout of this.pageLayouts) {
+    for (const pageLayout of this.pageLayouts) {
       const path = pageLayout.path;
-      if(this.pageLayouts.filter(p => p.path === path).length > 1) {
-        throw new Error(`Duplicate path: ${path} in ${pageLayout.element.page}`);
+      if (this.pageLayouts.filter((p) => p.path === path).length > 1) {
+        throw new Error(
+          `Duplicate path: ${path} in ${pageLayout.element.page}`
+        );
       }
     }
-    
+
     return {
       middlewares: this.middlewares,
       routes: this.routes,
@@ -515,7 +567,9 @@ ReactDOM.createRoot(root).render(
   }
 
   public getRouteByPath(path: string): Route | undefined {
-    return this.routes.find((route) => route.path === path);
+    return this.routes.find(
+      (route) => route.path === (path?.startsWith("/") ? path : `/${path}`)
+    );
   }
 }
 
