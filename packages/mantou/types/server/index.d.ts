@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia';
 import type { ServerOptions } from '@/types/server';
-export declare function buildRoutes(app: Elysia, baseDir?: string, config?: ServerOptions, App?: any): Promise<Elysia>;
-export declare const startServer: (_options: ServerOptions, App?: any) => Promise<Elysia<"", {
+export declare function buildRoutes(app: Elysia, baseDir?: string, config?: ServerOptions): Promise<Elysia>;
+export declare const startServer: (_options: ServerOptions) => Promise<Elysia<"", {
     decorator: {};
     store: {};
     derive: {};

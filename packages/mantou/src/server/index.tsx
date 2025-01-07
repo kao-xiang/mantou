@@ -6,15 +6,43 @@ import { swagger } from '@elysiajs/swagger'
 import { logger } from '../lib/logger';
 import _ from 'lodash';
 import type { ServerOptions } from '@/types/server';
-import path from 'path';
+import path, { resolve } from 'path';
 import { loadConfig } from '@/lib/fs';
 import cors from '@elysiajs/cors';
 import { RouteResolver } from '@/core/file-base-router';
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
-import ServerReactDOM from 'react-dom/server';
-import React, { createElement, Suspense } from 'react';
-import { TestPage } from './test';
+import { staticPlugin } from '@elysiajs/static';
+
+let projectReact: typeof import('react')
+let projectReactDOMServer: typeof import('react-dom/server')
+let projectReactRouter: typeof import('react-router')
+
+async function loadProjectReact(projectPath: string) {
+  try {
+    // Load React from the project's node_modules
+    const reactPath = resolve(projectPath, 'node_modules/react');
+    const reactDOMServerPath = resolve(projectPath, 'node_modules/react-dom/server');
+    const reactRouterPath = resolve(projectPath, 'node_modules/react-router');
+    projectReact = await import(reactPath);
+    projectReactDOMServer = await import(reactDOMServerPath);
+    projectReactRouter = await import(reactRouterPath);
+    
+    // Make this React instance global
+    (global as any).React = projectReact;
+    (global as any).ReactDOMServer = projectReactDOMServer;
+    (global as any).ReactRouter = projectReactRouter;
+
+    return {
+      React: projectReact,
+      ReactDOMServer: projectReactDOMServer,
+      ReactRouter: projectReactRouter,
+    }
+  } catch (error) {
+    console.error('Failed to load project React:', error);
+    throw error;
+  }
+}
 
 
 const ajv = addFormats(
@@ -63,14 +91,30 @@ export async function buildRoutes(
   app: Elysia,
   baseDir = "./src",
   config?: ServerOptions,
-  App?: any
 ): Promise<Elysia> {
-  app.get('/dist/*', ({ path, params }) => {
-    return file(process.cwd() + `/dist/${params["*"]}`)
-  })
-  app.get('public/*', ({ path, params }) => {
-    return file(process.cwd() + `/public/${params["*"]}`)
-  })
+
+  try{
+    app.use(staticPlugin({
+      assets: process.cwd() + '/dist',
+      prefix: '/dist',
+      alwaysStatic: true,
+    }))
+  
+    app.use(staticPlugin({
+      assets: process.cwd() + '/public',
+      prefix: '/public',
+      alwaysStatic: true,
+    }))
+  }catch(e) {
+    console.log(e)
+  }
+
+  // app.get('/dist/*', ({ path, params }) => {
+  //   return file(process.cwd() + `/dist/${params["*"]}`)
+  // })
+  // app.get('public/*', ({ path, params }) => {
+  //   return file(process.cwd() + `/public/${params["*"]}`)
+  // })
   app.use(
     swagger({
       ...config?.swagger,
@@ -83,6 +127,8 @@ export async function buildRoutes(
   const { routes, middlewares } = await resolver.resolveRoutes();
 
   await resolver.buildApp();
+
+  await loadProjectReact(process.cwd());
 
   for (const route of routes) {
     if (!route.path?.startsWith(config?.apiPrefix || "/api")) {
@@ -132,60 +178,59 @@ export async function buildRoutes(
     });
   }
 
+
+
   app.get("*", async (ctx) => {
     try {
-      const ImportedApp = await import(path.resolve("./dist", "App.tsx"));
-      const Component = App;
-      console.log(App);
-      if (React !== ImportedApp.React) {
-        console.log(React.version, ImportedApp.React.version);
-        console.warn('React instances are not the same');
+      // clear import cache
+      const ImportedApp = await import(path.resolve("./dist", `App.tsx?imported=${Date.now()}`));
+      const Component = ImportedApp.default
+
+      if(!projectReact || !projectReactDOMServer || !projectReactRouter) {
+        await loadProjectReact(process.cwd());
       }
-      const stream = await ServerReactDOM.renderToReadableStream(
-        <Component/>
-      );
-      return new Response(stream, {
-        headers: { "Content-Type": "text/html" },
-      });
+
+      const data = await resolver.getRouteByPath(ctx.path)?.routeData?.data?.();
+
+      const content = projectReactDOMServer?.renderToString(
+        projectReact?.createElement(projectReactRouter.StaticRouter, {
+          location: ctx.path,
+        }, projectReact?.createElement(Component, { data })
+        ),
+      )
+
+      const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Document</title>
+        </head>
+        <body>
+          <div id="root">${content}</div>
+          <script src="/dist/index.js" type="module"></script>
+          <script>
+            window.__INITIAL_DATA__ = ${JSON.stringify(data)}
+          </script>
+        </body>
+      </html>
+      `
+
+      return new Response(html, {
+        headers: { 'Content-Type': 'text/html' },
+      })
     } catch (error) {
       console.log(error)
       throw error;
     }
 
-    const html = `
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Document</title>
-      </head>
-      <body>
-        <div id="root"></div>
-        <script src="/dist/index.js"></script>
-      </body>
-    `
-
-    return new Response(html, {
-      headers: { 'Content-Type': 'text/html' }
-    })
-
-    // const ele = createElement(StaticRouter, { location: ctx.path }, createElement(App, {}));
-    // const stream = await ServerReactDOM.renderToReadableStream(ele,
-    //   {
-    //     // bootstrapScripts: [path.resolve(config?.outputDir || "./dist", "index.tsx")],
-    //   }
-    // );
-  
-    // return new Response(stream, {
-    //   headers: { "Content-Type": "text/html" },
-    // });
   });
 
   return app;
 }
 
-export const startServer = async (_options: ServerOptions, App?: any) => {
+export const startServer = async (_options: ServerOptions) => {
   const options = await loadConfig(path.resolve(process.cwd() || "", 'mantou.config.ts'), _options)
   const app = new Elysia()
 
@@ -200,7 +245,7 @@ export const startServer = async (_options: ServerOptions, App?: any) => {
     app.use(cors(options?.cors))
   }
 
-  await buildRoutes(app, path.resolve(options.baseDir || ""), options, App)
+  await buildRoutes(app, path.resolve(options.baseDir || ""), options)
 
   app.listen(options.port || 3000, () => {
     logger.info(`🚀 Server started on http://${options.host}:${options.port}`)

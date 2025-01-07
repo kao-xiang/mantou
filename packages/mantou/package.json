@@ -47,8 +47,8 @@
   },
   "homepage": "https://github.com/ppenter/mantou",
   "scripts": {
-    "dev:lib": "bun build --target=bun ./src/index.ts --outfile=dist/index.js --external 'react-dom,react,react-router' --watch",
-    "dev:cli": "bun build --target=bun ./src/cli/index.ts --outfile=dist/cli/index.js --external 'react-dom,react,react-router' --watch",
+    "dev:lib": "bun build --target=bun ./src/index.ts --outfile=dist/index.js --watch --minify",
+    "dev:cli": "bun build --target=bun ./src/cli/index.ts --outfile=dist/cli/index.js --watch --minify",
     "dev:jsx-runtime": "bun build --target=bun ./src/jsx-runtime/index.ts --outfile=dist/jsx-runtime/index.js --external 'react-dom,react,react-router' --watch",
     "dev:types": "tsc --watch --project tsconfig.types.json",
     "build:lib": "bun build --target=bun ./src/index.ts --outfile=dist/index.js --external 'react-dom,react,react-router'",

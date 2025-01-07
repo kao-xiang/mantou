@@ -13,3 +13,10 @@ export const get = handler(() => {
   auth(['buyer'])
 ]
 )
+
+export const data = () => {
+  return {
+    name: 'John Doe',
+    age: 30
+  }
+}

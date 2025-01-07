@@ -2,21 +2,10 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "jsx": "react-jsx",
+    "jsxImportSource": "react",
     "baseUrl": "./src",
     "paths": {
       "@/*": ["*"]
     }
-  },
-  "include": ["src", "cli.*", "dist/jsx-runtime"],
-  "exclude": [
-    "node_modules",
-    "out",
-    "server",
-    "client",
-    "test",
-    "jsx-runtime",
-    "jsx-dev-runtime",
-    "**/out",
-    "**/__fixtures__"
-  ]
+  }
 }

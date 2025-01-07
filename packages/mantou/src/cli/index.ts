@@ -6,44 +6,34 @@ import path from 'node:path';
 import { loadConfig, writeRecursive } from '@/lib/fs';
 import { fork } from 'child_process';
 import { buildApp } from '@/core/build';
+import type Elysia from 'elysia';
+import { startServer } from '@/server';
 
-let currentServer = null as any;
+let currentServer = null as Elysia | null;
 
-async function startServer(config: any) {
-  const loadedConfig = await loadConfig(path.resolve(process.cwd(), 'mantou.config.ts'));
-  await buildApp(loadedConfig);
-  // await writeRecursive(path.resolve(process.cwd(), loadedConfig?.outputDir || '', 'server.ts'), `
-    
-  //   import { startServer, loadConfig } from 'mantou'
-  //   import App from './App'
+// async function startServer(config: any) {
+//   const loadedConfig = await loadConfig(path.resolve(process.cwd(), 'mantou.config.ts'));
+//   await buildApp(loadedConfig);
 
-  //   async function serverStart(){
-  //     const loadedConfig = await loadConfig('./mantou.config.ts')
-  //     await startServer(loadedConfig, App)
-  //   }
+//   const serverPath = path.resolve(process.cwd(), loadedConfig?.outputDir || '', 'server.js');
+//   const serverProcess = fork(serverPath, [], {
+//     env: { ...process.env, ...config },
+//   });
 
-  //   serverStart()
-    
-  // `);
-
-  const serverPath = path.resolve(process.cwd(), loadedConfig?.outputDir || '', 'server.ts');
-  const serverProcess = fork(serverPath, [], {
-    env: { ...process.env, ...config },
-  });
-
-  return serverProcess;
-}
+//   return serverProcess;
+// }
 
 async function restartServer(isDev = false) {
   try {
     if (currentServer) {
       // Gracefully close the current server
-      currentServer.kill();
+      currentServer.stop()
     }
 
-    currentServer = await startServer({ isDev });
-  } catch (error) {
-    console.error(pc.red('Error restarting server:'), error);
+    currentServer = await startServer({});
+  } catch (error: any) {
+    console.error(pc.red('Error restarting server:'), error?.message || error);
+    process.exit(1);
   }
 }
 
@@ -67,12 +57,7 @@ program
     watcher
       .on('change', async (path) => {
         console.log(pc.blue('Restarting server...'));
-        
-        // Clear require cache for the changed file
-        for(const key in require.cache){
-          delete require.cache[key];
-        }
-        
+
         await restartServer(true);
       })
       .on('error', error => console.error(pc.red(`Watcher error: ${error}`)));
@@ -81,7 +66,7 @@ program
     process.on('SIGINT', async () => {
       console.log(pc.yellow('\nGracefully shutting down...'));
       if (currentServer) {
-        currentServer.kill();
+        currentServer.stop();
       }
       process.exit(0);
     });

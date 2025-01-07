@@ -13,12 +13,12 @@
     "downlevelIteration": true,
     "skipLibCheck": true,
     "jsx": "react-jsx",
+    "jsxImportSource": "react",
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "allowJs": true,
     "verbatimModuleSyntax": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["mantou"],
     "paths": {
       "@/*": ["*"]
     }

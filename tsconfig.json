@@ -17,7 +17,8 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "allowJs": true,
-    "jsx": "react-jsx",
+    "jsx": "react-jsx", 
+    "jsxImportSource": "react",
   },
   "exclude": ["node_modules"]
 }

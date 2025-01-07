@@ -25,6 +25,9 @@ interface HandlerConfig {
     type?: ContentType;
     [key: string]: any;
 }
+interface RouteData {
+    data?: () => Promise<any> | any;
+}
 interface Route<TConfig extends HandlerConfig = any> {
     filePath: string;
     path: string;
@@ -32,6 +35,7 @@ interface Route<TConfig extends HandlerConfig = any> {
     handler: RouteHandlerFunction<TConfig>;
     config: TConfig;
     guards: Guard[];
+    routeData?: RouteData;
 }
 interface BasePath {
     filePath: string;
@@ -41,6 +45,13 @@ interface Page extends BasePath {
 }
 interface Layout extends BasePath {
     children?: (Page | Layout)[];
+}
+interface PageLayout {
+    path: string;
+    element: {
+        page: string;
+        layouts?: string[];
+    };
 }
 export interface Guard {
     handler: RouteHandlerFunction<any>;
@@ -64,18 +75,18 @@ export declare class RouteResolver<M extends HandlerConfig, R extends HandlerCon
     routes: Route<R>[];
     pages: Page[];
     layouts: Layout[];
+    pageLayouts: PageLayout[];
     config: ServerOptions;
     constructor(config: ServerOptions);
     private normalizePath;
-    private recursiveGetImportStatement;
+    getRouteGroup(filePath: string): string;
+    findMatchingLayouts(page: Page, layouts: Layout[]): string[];
+    combinePageLayouts(layouts: Layout[], pages: Page[]): Promise<PageLayout[]>;
     buildApp(): Promise<void>;
+    private getPathFromLayout;
     private filePathToRoutePath;
     private processMiddleware;
     private processRoute;
-    getComponentPath(filePath: string, baseDir?: string): string;
-    createRoutes(node: Page | Layout): any;
-    createRouterConfig(layouts: Layout[], pages: Page[]): any[];
-    mergePagesIntoLayouts(layouts: Layout[], pages: Page[]): (Page | Layout)[];
     private processPage;
     private processLayout;
     resolveRoutes(): Promise<{
@@ -84,6 +95,7 @@ export declare class RouteResolver<M extends HandlerConfig, R extends HandlerCon
         pages: Page[];
         layouts: Layout[];
     }>;
+    getRouteByPath(path: string): Route | undefined;
 }
 export declare function handler<TBody extends TSchema, TQuery extends TSchema, TParams extends TSchema>(fn: RouteHandlerFunction<{
     body: TBody;
