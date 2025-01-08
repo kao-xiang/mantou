@@ -364,20 +364,40 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
 }
 `;
 
-    let indexContent = `
+let indexContent = `
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router";
+import { BrowserRouter } from "react-router";
 import App from "./App";
 
-const initialData = typeof window !== "undefined" ? window.__INITIAL_DATA__ : undefined;
-const root = document.getElementById("root");
+const initialData = typeof window !== "undefined" ? (window as any).__INITIAL_DATA__ : undefined;
+const rootElement = document.getElementById("root");
 
-ReactDOM.createRoot(root).render(
+if (!rootElement) throw new Error("Root element not found");
+
+const AppWithRouter = () => (
   <BrowserRouter>
-    <App data={initialData}/>
+    <App data={initialData} />
   </BrowserRouter>
 );
+
+// In development, set up live reload
+if (process.env.NODE_ENV === "development") {
+  const ws = new WebSocket(\`ws://\${window.location.host}/live-reload\`);
+  
+  ws.onmessage = (event) => {
+    if (event.data === 'reload') {
+      window.location.reload();
+    }
+  };
+
+  const root = ReactDOM.createRoot(rootElement);
+  root.render(<AppWithRouter />);
+} 
+// In production, hydrate for SSR
+else {
+  ReactDOM.hydrateRoot(rootElement, <AppWithRouter />);
+}
 `;
 
     await writeRecursive(path.resolve(outputDir, "App.tsx"), appContent);
@@ -387,6 +407,7 @@ ReactDOM.createRoot(root).render(
       entrypoints: [path.resolve(outputDir, "index.tsx")],
       outdir: path.resolve(outputDir),
     });
+    console.log("Built index.tsx");
 
     await fs.unlink(path.resolve(outputDir, "index.tsx"));
   }
