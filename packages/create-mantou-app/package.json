@@ -1,7 +1,7 @@
 {
   "name": "create-mantou-app",
   "module": "./dist/index.js",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "bin": {
     "create-mantou-app": "./dist/index.js"
   },
