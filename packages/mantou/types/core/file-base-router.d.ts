@@ -1,20 +1,19 @@
 import { type Static, type TSchema } from "elysia";
 import type { ServerOptions } from "@/types/server";
+import type { HTTPHeaders } from "elysia/types";
 type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
 type ContentType = "text" | "json" | "formdata" | "urlencoded" | "text/plain" | "application/json" | "multipart/form-data" | "application/x-www-form-urlencoded";
 interface BaseContext {
-    app: any;
     request: Request;
     path: string;
     set: {
-        headers: (headers: Record<string, string>) => void;
-        status: (status: number) => void;
-        cookie: (name: string, value: string, options?: Record<string, any>) => void;
+        headers: HTTPHeaders;
+        status?: number | string;
+        cookie?: Record<string, any>;
     };
     store: Record<string, any>;
-    url: string;
     route: string;
-    headers: Record<string, string>;
+    headers?: Record<string, string | undefined>;
 }
 interface HandlerConfig {
     body?: TSchema;
@@ -26,7 +25,7 @@ interface HandlerConfig {
     [key: string]: any;
 }
 interface RouteData {
-    data?: () => Promise<any> | any;
+    data?: (ctx: BaseContext) => any;
 }
 interface Route<TConfig extends HandlerConfig = any> {
     filePath: string;

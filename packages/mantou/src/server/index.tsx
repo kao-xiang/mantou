@@ -126,7 +126,7 @@ export async function buildRoutes(
           await loadProjectReact(process.cwd());
         }
   
-        const data = await resolver.getRouteByPath(ctx.path)?.routeData?.data?.();
+        const data = await resolver.getRouteByPath(ctx.path)?.routeData?.data?.(ctx);
   
         const content = projectReactDOMServer?.renderToString(
           projectReact?.createElement(projectReactRouter.StaticRouter, {

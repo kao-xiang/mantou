@@ -4,6 +4,7 @@ import path from "path";
 import type { ServerOptions } from "@/types/server";
 import fs from "fs/promises";
 import { writeRecursive } from "@/lib/fs";
+import type { HTTPHeaders } from "elysia/types";
 
 
 // Types
@@ -19,22 +20,20 @@ type ContentType =
   | "application/x-www-form-urlencoded";
 
 interface BaseContext {
-  app: any;
   request: Request;
   path: string;
   set: {
-    headers: (headers: Record<string, string>) => void;
-    status: (status: number) => void;
-    cookie: (
-      name: string,
-      value: string,
-      options?: Record<string, any>
-    ) => void;
+    headers: HTTPHeaders
+    status?: number | string;
+    cookie?: Record<string, any>;
   };
   store: Record<string, any>;
-  url: string;
   route: string;
-  headers: Record<string, string>;
+  headers?: Record<string, string | undefined>;
+}
+
+interface MiddlewareContext extends BaseContext {
+  app: Elysia;
 }
 
 interface HandlerConfig {
@@ -48,7 +47,7 @@ interface HandlerConfig {
 }
 
 interface RouteData {
-  data?: () => Promise<any> | any;
+  data?: (ctx: BaseContext) => any;
 }
 
 interface Route<TConfig extends HandlerConfig = any> {
