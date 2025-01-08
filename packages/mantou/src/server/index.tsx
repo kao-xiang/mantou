@@ -232,7 +232,7 @@ export const startServer = async (_options: ServerOptions) => {
   const app = new Elysia()
 
   if(options?.swagger) {
-    logger.info(`Swagger enabled at ${options.swagger.path}`)
+    logger.info(`📄 OpenAPI Docs available at http://${options.host}:${options.port}${options.swagger.path}`)
     app
       .use(swagger({
         ...options.swagger,
@@ -245,7 +245,10 @@ export const startServer = async (_options: ServerOptions) => {
 
   await buildRoutes(app, path.resolve(options.baseDir || ""), options)
 
-  app.listen(options.port || 3000, () => {
+  app.listen({
+    port: options.port,
+    hostname: options.host,
+  }, () => {
     logger.info(`🍞 Server started on http://${options.host}:${options.port}`)
   })
 

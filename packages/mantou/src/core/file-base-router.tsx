@@ -407,7 +407,6 @@ else {
       entrypoints: [path.resolve(outputDir, "index.tsx")],
       outdir: path.resolve(outputDir),
     });
-    console.log("Built index.tsx");
 
     await fs.unlink(path.resolve(outputDir, "index.tsx"));
   }

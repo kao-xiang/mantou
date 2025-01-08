@@ -42,8 +42,6 @@ async function restartServer(options: { isDev?: boolean } = {}) {
         }
       });
     }
-    
-    console.log(pc.green('Server started successfully'));
   } catch (error: any) {
     console.error(pc.red('Error restarting server:'), error?.message || error);
     process.exit(1);
