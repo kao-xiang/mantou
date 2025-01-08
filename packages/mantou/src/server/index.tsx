@@ -231,8 +231,11 @@ export const startServer = async (_options: ServerOptions) => {
   const options = await loadConfig(path.resolve(process.cwd() || "", 'mantou.config.ts'), _options)
   const app = new Elysia()
 
+  const isSSL = options.ssl
+  const sslText = isSSL ? "https" : "http"
+
   if(options?.swagger) {
-    logger.info(`📄 OpenAPI Docs available at http://${options.host}:${options.port}${options.swagger.path}`)
+    logger.info(`📄 OpenAPI Docs available at ${sslText}://${options.host}:${options.port}${options.swagger.path}`)
     app
       .use(swagger({
         ...options.swagger,
@@ -249,7 +252,7 @@ export const startServer = async (_options: ServerOptions) => {
     port: options.port,
     hostname: options.host,
   }, () => {
-    logger.info(`🍞 Server started on http://${options.host}:${options.port}`)
+    logger.info(`🍞 Server started on ${sslText}://${options.host}:${options.port}`)
   })
 
   return app
