@@ -25,7 +25,7 @@ const defaultOptions: ServerOptions = {
 
 export const loadConfig = async (path = "mantou.config.js", _options?: ServerOptions) => {
   const __options = _.merge(defaultOptions, _options)
-  const loaded = import(path).then((config) => config.default || config).catch((e) => {
+  const loaded = await import(path).then((config) => config.default || config).catch((e) => {
     console.error("Failed to load config", e);
     return {};
   });
