@@ -5,6 +5,7 @@ import pc from 'picocolors';
 import { join } from 'path';
 import { copy, ensureDir, writeFile } from 'fs-extra';
 import { fileURLToPath } from 'url';
+import thisPackage from '../package.json';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -43,7 +44,7 @@ async function createProject(options: ProjectOptions) {
         "typecheck": "tsc --noEmit"
       },
       dependencies: {
-        "mantou": "latest",
+        "mantou": thisPackage.version,
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
       },

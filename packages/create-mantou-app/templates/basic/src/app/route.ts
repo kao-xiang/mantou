@@ -5,7 +5,7 @@ const auth = (roles: string[]) => guard(async () => {
   return true
 })
 
-export const get = handler(() => {
+export const post = handler(() => {
   return `Hello World`;
 }, {
 
