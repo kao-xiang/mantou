@@ -5,18 +5,11 @@ const auth = (roles: string[]) => guard(async () => {
   return true
 })
 
-export const get = handler(() => {
-  return `Hello World`;
+export const post = handler(() => {
+  return `Hello World`
 }, {
 
 }, [
   auth(['buyer'])
 ]
 )
-
-export const data = () => {
-  return {
-    name: 'John Doe',
-    age: 30
-  }
-}

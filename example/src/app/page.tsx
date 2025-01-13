@@ -1,5 +1,12 @@
 // src/page,tsx
-export default function Page({ data }: any) {
+import type { GetServerSideData, PageProps } from 'mantou';
+
+export const metadata = {
+    title: "Mantou 2"
+}
+
+export default function Page({ data }: PageProps) {
+  console.log('Data: ', data);
   return (
     <div className="container">
       <header className="header">
@@ -72,4 +79,11 @@ export default function Page({ data }: any) {
       </main>
     </div>
   );
+}
+
+
+export const getServerSideData: GetServerSideData = async (ctx) => {
+    return {
+        data: 'Hello World 23',
+    }
 }
