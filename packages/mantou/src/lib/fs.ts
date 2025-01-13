@@ -1,6 +1,7 @@
 import type { ServerOptions } from '@/types/server';
 import fs from 'fs/promises';
 import _ from 'lodash';
+import path from 'path';
 
 const defaultOptions: ServerOptions = {
   isDev: true,
@@ -18,18 +19,24 @@ const defaultOptions: ServerOptions = {
     }
   },
   baseDir: './src',
+  appDir: './app',
   configPath: './mantou.config.ts',
   outputDir: './dist',
   apiPrefix: '/api'
 }
 
-export const loadConfig = async (path = "mantou.config.js", _options?: ServerOptions) => {
+export const loadConfig = async (configPath = './mantou.config.ts', _options?: ServerOptions) => {
   const __options = _.merge(defaultOptions, _options)
-  const loaded = await import(path).then((config) => config.default || config).catch((e) => {
+  const loaded = await import(path.resolve(process.cwd(), configPath)).then((config) => config.default || config).catch((e) => {
     console.error("Failed to load config", e);
     return {};
   });
-  const options = _.merge(__options, loaded) as ServerOptions
+  const tsconfig = await import(process.cwd() + "/tsconfig.json").then((config) => config.default || config).catch((e) => { return {} });
+
+  const options = _.merge(__options, loaded, {
+    baseDir: tsconfig.compilerOptions.baseUrl || __options.baseDir || loaded.baseDir,
+  }) as ServerOptions
+
   return  options
 }
 

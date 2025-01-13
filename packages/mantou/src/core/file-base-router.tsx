@@ -1,10 +1,9 @@
 import { Elysia, type Static, type TSchema } from "elysia";
 import { glob } from "glob";
 import path from "path";
-import type { ServerOptions } from "@/types/server";
+import type { BaseContext, ServerOptions } from "@/types/server";
 import fs from "fs/promises";
 import { writeRecursive } from "@/lib/fs";
-import type { HTTPHeaders } from "elysia/types";
 
 
 // Types
@@ -18,19 +17,6 @@ type ContentType =
   | "application/json"
   | "multipart/form-data"
   | "application/x-www-form-urlencoded";
-
-interface BaseContext {
-  request: Request;
-  path: string;
-  set: {
-    headers: HTTPHeaders
-    status?: number | string;
-    cookie?: Record<string, any>;
-  };
-  store: Record<string, any>;
-  route: string;
-  headers?: Record<string, string | undefined>;
-}
 
 interface MiddlewareContext extends BaseContext {
   app: Elysia;
@@ -46,10 +32,6 @@ interface HandlerConfig {
   [key: string]: any;
 }
 
-interface RouteData {
-  data?: (ctx: BaseContext) => any;
-}
-
 interface Route<TConfig extends HandlerConfig = any> {
   filePath: string;
   path: string;
@@ -57,7 +39,7 @@ interface Route<TConfig extends HandlerConfig = any> {
   handler: RouteHandlerFunction<TConfig>;
   config: TConfig;
   guards: Guard[];
-  routeData?: RouteData;
+  // routeData?: RouteData;
 }
 
 interface BasePath {
@@ -77,16 +59,6 @@ interface PageLayout {
     page: string;
     layouts?: string[];
   };
-}
-
-interface RouteNode {
-  layout: string;
-  path: string;
-  children: Map<string, RouteNode>;
-  pages: Array<{
-    path: string;
-    page: string;
-  }>;
 }
 
 export interface Guard {
@@ -125,7 +97,8 @@ const HTTP_METHODS: readonly HttpMethod[] = [
 
 // Route Resolution
 export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
-  private readonly routesDir: string;
+  private readonly appDir: string;
+  private readonly baseDir: string = process.cwd();
   private readonly pathMap = new Map<string, string>();
   public middlewares: MiddlewareConfig<M>[] = [];
   public routes: Route<R>[] = [];
@@ -136,7 +109,8 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
 
   constructor(config: ServerOptions) {
     this.config = config;
-    this.routesDir = path.resolve(process.cwd(), config?.baseDir || "./src");
+    this.appDir = path.resolve(process.cwd(), config?.baseDir || "./src", config.appDir || "");
+    this.baseDir = path.resolve(process.cwd(), config?.baseDir || "./src");
   }
 
   private normalizePath(rawPath: string): string {
@@ -223,7 +197,7 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
     // delete existing output directory
     await fs.rm(outputDir, { recursive: true, force: true });
     const files = glob.sync("**/*.{ts,js,tsx,jsx}", {
-      cwd: this.routesDir,
+      cwd: this.baseDir,
       ignore: ["**/*.d.ts", "**/*.test.ts", "**/*.spec.ts", "_*/**"],
     });
 
@@ -240,12 +214,12 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
       uniqueImports.add(route.element.page);
       route.element.layouts?.forEach((layout) => uniqueImports.add(layout));
 
-      const matchingRoute = this.routes.find(
-        (r) => r.path === route.path && r.routeData
-      );
-      if (matchingRoute?.routeData) {
-        routeDataMap.set(route.path, matchingRoute.filePath);
-      }
+      // const matchingRoute = this.routes.find(
+      //   (r) => r.path === route.path && r.routeData
+      // );
+      // if (matchingRoute?.routeData) {
+      //   routeDataMap.set(route.path, matchingRoute.filePath);
+      // }
     });
 
     // Generate imports and import map
@@ -295,11 +269,7 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
       };
 
       const addInitialData = (path: string) => {
-        if (routeDataMap.has(path)) {
-          return `data={data}`;
-        } else {
-          return "";
-        }
+        return `data={data} params={params} query={query}`
       };
 
       routes.forEach((route) => {
@@ -355,7 +325,7 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
       routesJSX += generateGroupRoutes(routes);
     });
 
-    appContent += `\nexport default function App({ data }: any) {
+    appContent += `\nexport default function App({ data, params, query }: any) {
   return (
     <Routes>${routesJSX}
     </Routes>
@@ -370,13 +340,15 @@ import { BrowserRouter } from "react-router";
 import App from "./App";
 
 const initialData = typeof window !== "undefined" ? (window as any).__INITIAL_DATA__ : undefined;
+const initialParams = typeof window !== "undefined" ? (window as any).__INITIAL_PARAMS__ : undefined;
+const initialQuery = typeof window !== "undefined" ? (window as any).__INITIAL_QUERY__ : undefined;
 const rootElement = document.getElementById("root");
 
 if (!rootElement) throw new Error("Root element not found");
 
 const AppWithRouter = () => (
   <BrowserRouter>
-    <App data={initialData} />
+    <App data={initialData} params={initialParams} query={initialQuery} />
   </BrowserRouter>
 );
 
@@ -418,7 +390,7 @@ else {
 
   private filePathToRoutePath(filePath: string): string {
     const parsedPath = path.parse(filePath);
-    const relativePath = path.relative(this.routesDir, parsedPath.dir);
+    const relativePath = path.relative(this.appDir, parsedPath.dir);
     return this.normalizePath(relativePath);
   }
 
@@ -450,8 +422,7 @@ else {
           method,
           handler: module[method]?.handler,
           config: module[method]?.config,
-          guards: module[method]?.guards ?? [],
-          routeData,
+          guards: module[method]?.guards ?? []
         });
       }
     }
@@ -464,8 +435,7 @@ else {
         method: "get",
         handler: async () => ({}),
         config: {} as R,
-        guards: [],
-        routeData: { data: module.data },
+        guards: []
       });
     }
   }
@@ -515,7 +485,7 @@ else {
     this.pathMap.clear();
 
     const files = await glob("**/*.{ts,js,tsx,jsx}", {
-      cwd: this.routesDir,
+      cwd: this.appDir,
       ignore: ["**/*.d.ts", "**/*.test.ts", "**/*.spec.ts", "_*/**"],
     });
 
@@ -524,7 +494,7 @@ else {
       files
         .filter((file) => file.includes("middleware."))
         .map((file) =>
-          this.processMiddleware(path.resolve(this.routesDir, file))
+          this.processMiddleware(path.resolve(this.appDir, file))
         )
     );
 
@@ -534,7 +504,7 @@ else {
         .filter((file) => file.includes("route."))
         .map(async (file) => {
           const resolvedPath = this.filePathToRoutePath(
-            path.resolve(this.routesDir, file)
+            path.resolve(this.appDir, file)
           );
 
           if (this.pathMap.has(resolvedPath)) {
@@ -546,7 +516,7 @@ else {
           }
 
           this.pathMap.set(resolvedPath, file);
-          await this.processRoute(path.resolve(this.routesDir, file));
+          await this.processRoute(path.resolve(this.appDir, file));
         })
     );
 
@@ -554,14 +524,14 @@ else {
     await Promise.all(
       files
         .filter((file) => file.includes("layout."))
-        .map((file) => this.processLayout(path.resolve(this.routesDir, file)))
+        .map((file) => this.processLayout(path.resolve(this.appDir, file)))
     );
 
     // Finally process pages
     await Promise.all(
       files
         .filter((file) => file.includes("page."))
-        .map((file) => this.processPage(path.resolve(this.routesDir, file)))
+        .map((file) => this.processPage(path.resolve(this.appDir, file)))
     );
 
     // Merge pages into layouts
@@ -588,6 +558,18 @@ else {
   public getRouteByPath(path: string): Route | undefined {
     return this.routes.find(
       (route) => route.path === (path?.startsWith("/") ? path : `/${path}`)
+    );
+  }
+
+  public getLayoutByPath(path: string): Layout | undefined {
+    return this.layouts.find(
+      (layout) => layout.path === (path?.startsWith("/") ? path : `/${path}`)
+    );
+  }
+
+  public getPageByPath(path: string): Page | undefined {
+    return this.pages.find(
+      (page) => page.path === (path?.startsWith("/") ? path : `/${path}`)
     );
   }
 }

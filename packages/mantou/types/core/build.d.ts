@@ -1,2 +1,2 @@
 import type { ServerOptions } from "@/types/server";
-export declare const buildApp: (options: ServerOptions) => Promise<boolean>;
+export declare const buildApp: (_options: ServerOptions) => Promise<boolean>;

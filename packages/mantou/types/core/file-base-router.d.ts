@@ -1,20 +1,7 @@
 import { type Static, type TSchema } from "elysia";
-import type { ServerOptions } from "@/types/server";
-import type { HTTPHeaders } from "elysia/types";
+import type { BaseContext, ServerOptions } from "@/types/server";
 type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
 type ContentType = "text" | "json" | "formdata" | "urlencoded" | "text/plain" | "application/json" | "multipart/form-data" | "application/x-www-form-urlencoded";
-interface BaseContext {
-    request: Request;
-    path: string;
-    set: {
-        headers: HTTPHeaders;
-        status?: number | string;
-        cookie?: Record<string, any>;
-    };
-    store: Record<string, any>;
-    route: string;
-    headers?: Record<string, string | undefined>;
-}
 interface HandlerConfig {
     body?: TSchema;
     query?: TSchema;
@@ -24,9 +11,6 @@ interface HandlerConfig {
     type?: ContentType;
     [key: string]: any;
 }
-interface RouteData {
-    data?: (ctx: BaseContext) => any;
-}
 interface Route<TConfig extends HandlerConfig = any> {
     filePath: string;
     path: string;
@@ -34,7 +18,6 @@ interface Route<TConfig extends HandlerConfig = any> {
     handler: RouteHandlerFunction<TConfig>;
     config: TConfig;
     guards: Guard[];
-    routeData?: RouteData;
 }
 interface BasePath {
     filePath: string;
@@ -68,7 +51,8 @@ type Context<TConfig extends HandlerConfig> = BaseContext & {
 };
 type RouteHandlerFunction<TConfig extends HandlerConfig> = (ctx: Context<TConfig>) => Promise<any> | any;
 export declare class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
-    private readonly routesDir;
+    private readonly appDir;
+    private readonly baseDir;
     private readonly pathMap;
     middlewares: MiddlewareConfig<M>[];
     routes: Route<R>[];
@@ -95,6 +79,8 @@ export declare class RouteResolver<M extends HandlerConfig, R extends HandlerCon
         layouts: Layout[];
     }>;
     getRouteByPath(path: string): Route | undefined;
+    getLayoutByPath(path: string): Layout | undefined;
+    getPageByPath(path: string): Page | undefined;
 }
 export declare function handler<TBody extends TSchema, TQuery extends TSchema, TParams extends TSchema>(fn: RouteHandlerFunction<{
     body: TBody;

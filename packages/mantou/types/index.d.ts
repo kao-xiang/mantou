@@ -1,10 +1,10 @@
 import { Elysia as Mantou, t } from "elysia";
 import type { RouteContext } from "./types/handler";
 import { Controller } from "./types/controller";
-import type { ServerOptions } from "./types/server";
+import type { ServerOptions, GenerateMetadata, GetServerSideData, PageProps } from "./types/server";
 import { guard, handler } from "./core/file-base-router";
 import { loadConfig } from "./lib/fs";
 import { startServer } from "./server";
 import { buildApp } from "./core/build";
 export { Mantou, t, Controller, handler, guard, startServer, buildApp, loadConfig };
-export type { RouteContext, ServerOptions };
+export type { RouteContext, ServerOptions, GenerateMetadata, GetServerSideData, PageProps };

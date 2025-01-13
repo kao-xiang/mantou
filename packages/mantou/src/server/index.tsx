@@ -14,6 +14,7 @@ import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import { staticPlugin } from '@elysiajs/static';
 import { glob } from "glob";
+import fs from 'fs/promises';
 
 let projectReact: typeof import('react')
 let projectReactDOMServer: typeof import('react-dom/server')
@@ -90,10 +91,9 @@ function validateSchema(
 // Route Building
 export async function buildRoutes(
   app: Elysia,
-  baseDir = "./src",
   config?: ServerOptions,
 ): Promise<Elysia> {
-  const resolver = new RouteResolver(config || { baseDir });
+  const resolver = new RouteResolver(config || {});
   const { routes, middlewares } = await resolver.resolveRoutes();
 
   await resolver.buildApp();
@@ -110,6 +110,7 @@ export async function buildRoutes(
       prefix: '/public',
       alwaysStatic: true,
     }))
+
   }catch(e) {
     console.log(e)
   }
@@ -125,13 +126,32 @@ export async function buildRoutes(
         if(!projectReact || !projectReactDOMServer || !projectReactRouter) {
           await loadProjectReact(process.cwd());
         }
+
+        const layout = await import(resolver.getLayoutByPath(ctx.path)?.filePath + `?imported=${Date.now()}`).then((layout) => layout).catch((e) => { console.error("Failed to load layout", e); return null; });
+        const page = await import(resolver.getPageByPath(ctx.path)?.filePath + `?imported=${Date.now()}`).then((page) => page).catch((e) => { console.error("Failed to load page", e); return null; });
+
+        const layoutMetadata = layout.metadata || {};
+        const pageMetadata = page.metadata || {};
+
+        const layoutGenerateMetadata = layout.generateMetadata || (() => ({}));
+        const pageGenerateMetadata = page.generateMetadata || (() => ({}));
+
+        const staticMetadata = _.merge({}, layoutMetadata, pageMetadata);
+
+        const dynamicMetadata = _.merge({}, layoutGenerateMetadata(ctx), pageGenerateMetadata(ctx));
+
+        const metadata = _.merge({}, staticMetadata, dynamicMetadata);
+
+        const getServerSideData = page.getServerSideData || (() => ({}));
   
-        const data = await resolver.getRouteByPath(ctx.path)?.routeData?.data?.(ctx);
+        const data = await getServerSideData(ctx);
+        const params = ctx.params || {};
+        const query = ctx.query || {};
   
         const content = projectReactDOMServer?.renderToString(
           projectReact?.createElement(projectReactRouter.StaticRouter, {
             location: ctx.path,
-          }, projectReact?.createElement(Component, { data })
+          }, projectReact?.createElement(Component, { data, params, query })
           ),
         )
 
@@ -139,24 +159,27 @@ export async function buildRoutes(
           return `<link rel="stylesheet" href="/dist/${file.split('/').pop()}" />`
         }).join('\n')
 
-        const html = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Document</title>
-            ${csss}
-          </head>
-          <body>
-            <div id="root">${content}</div>
-            <script src="/dist/index.js?a=${Date.now()}" type="module"></script>
-            <script>
-              window.__INITIAL_DATA__ = ${JSON.stringify(data)}
-            </script>
-          </body>
-        </html>
-        `
+        const loadedHTML = await fs.readFile(path.resolve(process.cwd(), 'public/index.html'), 'utf-8')
+
+        const html = loadedHTML
+        .replace("<!-- mantou_header -->", `
+          <title>${metadata.title}</title>
+          <meta name="description" content="${metadata.description}">
+          ${Object.keys(metadata).map((key) => {
+            if (key === "title" || key === "description") return "";
+            return `<meta name="${key}" content="${metadata[key]}">`;
+          }).join('\n')}
+          ${csss}
+        `)
+        .replace("<!-- mantou_root -->", content || "")
+        .replace("<!--  mantou_script -->", `
+          <script src="/dist/index.js?a=${Date.now()}" type="module"></script>
+          <script>
+            window.__INITIAL_DATA__ = ${JSON.stringify(data)}
+            window.__INITIAL_PARAMS__ = ${JSON.stringify(params)}
+            window.__INITIAL_QUERY__ = ${JSON.stringify(query)}
+          </script>
+          `)
 
         return new Response(html, {
           headers: { 'Content-Type': 'text/html' },
@@ -246,7 +269,7 @@ export const startServer = async (_options: ServerOptions) => {
     app.use(cors(options?.cors))
   }
 
-  await buildRoutes(app, path.resolve(options.baseDir || ""), options)
+  await buildRoutes(app, options)
 
   app.listen({
     port: options.port,

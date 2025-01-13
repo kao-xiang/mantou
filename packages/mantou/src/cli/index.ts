@@ -60,7 +60,6 @@ program
     process.env.NODE_ENV = 'development';
     
     // Initial build and server start
-    await buildApp({});
     await restartServer({ isDev: true });
 
     // Watch for file changes
@@ -86,10 +85,8 @@ program
         
         if (path.includes('client') || path.endsWith('.tsx')) {
           // Client-side changes - rebuild and notify
-          const rebuilt = await buildApp({});
-          if (rebuilt) {
-            notifyClientsToReload();
-          }
+          await restartServer({ isDev: true });
+          notifyClientsToReload();
         }
       })
       .on('error', error => console.error(pc.red(`Watcher error: ${error}`)));
