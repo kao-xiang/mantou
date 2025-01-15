@@ -45,7 +45,7 @@
     </style>
     <script>
         function getInitialTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'system';
+            const savedTheme = localStorage.getItem('theme') || 'light';
             if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
             return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
@@ -412,13 +412,13 @@
             <article>
                 <main>
                     <div class="content">
-                        <h1 id="introduction" dir="ltr"><span style="white-space: pre-wrap;">Introduction</span></h1><p dir="ltr" style="text-align: start;"><a href="https://github.com/ppenter/mantou#mantou-"></a></p><p dir="ltr" style="text-align: start;"><i><em class="text-italic" style="white-space: pre-wrap;">Mantou Is The Next Generation Web Framework Powered by Bun</em></i></p><h2 id="overview" dir="ltr" style="text-align: start;"><span style="white-space: pre-wrap;">🌟 Overview</span></h2><p dir="ltr" style="text-align: start;"><a href="https://github.com/ppenter/mantou#-overview"></a></p><p dir="ltr" style="text-align: start;"><span style="white-space: pre-wrap;">MANTOU (馒头) is a delightfully simple yet powerful web framework that brings together the best of Next.js patterns with Bun's blazing speed. Like its namesake - the fluffy Chinese steamed bun - MANTOU is light, satisfying, and gets the job done without unnecessary complexity.</span></p><h2 id="key-features" dir="ltr" style="text-align: start;"><span style="white-space: pre-wrap;">⚡️ Key Features</span></h2><p dir="ltr" style="text-align: start;"><a href="https://github.com/ppenter/mantou#%EF%B8%8F-key-features"></a></p><ul><li value="1" style="text-align: start;"><b><strong class="text-bold" style="white-space: pre-wrap;">0ms Cold Start</strong></b><span style="white-space: pre-wrap;">: Powered by Bun's lightning-fast runtime</span></li><li value="2" style="text-align: start;"><b><strong class="text-bold" style="white-space: pre-wrap;">Type Safety Without Tears</strong></b><span style="white-space: pre-wrap;">: Automatic type inference that just works</span></li><li value="3" style="text-align: start;"><b><strong class="text-bold" style="white-space: pre-wrap;">File-Based Magic</strong></b><span style="white-space: pre-wrap;">: Next.js-style routing you already know and love</span></li><li value="4" style="text-align: start;"><b><strong class="text-bold" style="white-space: pre-wrap;">API Docs That Write Themselves</strong></b><span style="white-space: pre-wrap;">: Automatic Swagger generation</span></li><li value="5" style="text-align: start;"><b><strong class="text-bold" style="white-space: pre-wrap;">Hot Like 🔥</strong></b><span style="white-space: pre-wrap;">: Ultra-fast hot module replacement</span></li><li value="6" style="text-align: start;"><b><strong class="text-bold" style="white-space: pre-wrap;">Zero Config</strong></b><span style="white-space: pre-wrap;">: Sensible defaults with full customization when you need it</span></li></ul><h2 id="why-choose-mantou" dir="ltr" style="text-align: start;"><span style="white-space: pre-wrap;">🎨 Why Choose MANTOU?</span></h2><p dir="ltr" style="text-align: start;"><a href="https://github.com/ppenter/mantou#-why-choose-mantou"></a></p><h3 id="simple-yet-powerful" dir="ltr" style="text-align: start;"><span style="white-space: pre-wrap;">Simple Yet Powerful</span></h3><p dir="ltr" style="text-align: start;"><a href="https://github.com/ppenter/mantou#simple-yet-powerful"></a></p><p dir="ltr" style="text-align: start;"><span style="white-space: pre-wrap;">Like a steamed bun, MANTOU is simple on the outside but packed with goodness inside. We eliminate complexity while keeping the power you need.</span></p><p><br></p>
+                        <h1 id="introduction" dir="ltr"><span style="white-space: pre-wrap;">Introduction</span></h1><p dir="ltr" style="text-align: start;"><a href="https://github.com/ppenter/mantou#mantou-"></a></p><p dir="ltr" style="text-align: start;"><i><em class="text-italic" style="white-space: pre-wrap;">Mantou Is The Next Generation Web Framework Powered by Bun</em></i></p><div class="callout-box-wrapper"><div class="callout-box" style="background-color: var(--sl-color-red-50); border: 1px solid var(--sl-color-red-200);"><div class="callout-box-icon"><sl-icon name="exclamation-diamond-fill" style="color: var(--sl-color-red-400);"></sl-icon></div><div class="callout-box-content" style="color: var(--sl-color-red-600);"><p dir="ltr"><b><strong style="white-space: pre-wrap;">Hey !</strong></b></p><p dir="ltr"><span style="white-space: pre-wrap;">Mantou is very still under development do not use this in production</span></p></div></div></div><h2 id="overview" dir="ltr" style="text-align: start;"><span style="white-space: pre-wrap;">🌟 Overview</span></h2><p dir="ltr" style="text-align: start;"><a href="https://github.com/ppenter/mantou#-overview"></a></p><p dir="ltr" style="text-align: start;"><span style="white-space: pre-wrap;">MANTOU (馒头) is a delightfully simple yet powerful web framework that brings together the best of Next.js patterns with Bun's blazing speed. Like its namesake - the fluffy Chinese steamed bun - MANTOU is light, satisfying, and gets the job done without unnecessary complexity.</span></p><h2 id="key-features" dir="ltr" style="text-align: start;"><span style="white-space: pre-wrap;">⚡️ Key Features</span></h2><p dir="ltr" style="text-align: start;"><a href="https://github.com/ppenter/mantou#%EF%B8%8F-key-features"></a></p><ul><li value="1" style="text-align: start;"><b><strong class="text-bold" style="white-space: pre-wrap;">0ms Cold Start</strong></b><span style="white-space: pre-wrap;">: Powered by Bun's lightning-fast runtime</span></li><li value="2" style="text-align: start;"><b><strong class="text-bold" style="white-space: pre-wrap;">Type Safety Without Tears</strong></b><span style="white-space: pre-wrap;">: Automatic type inference that just works</span></li><li value="3" style="text-align: start;"><b><strong class="text-bold" style="white-space: pre-wrap;">File-Based Magic</strong></b><span style="white-space: pre-wrap;">: Next.js-style routing you already know and love</span></li><li value="4" style="text-align: start;"><b><strong class="text-bold" style="white-space: pre-wrap;">API Docs That Write Themselves</strong></b><span style="white-space: pre-wrap;">: Automatic Swagger generation</span></li><li value="5" style="text-align: start;"><b><strong class="text-bold" style="white-space: pre-wrap;">Hot Like 🔥</strong></b><span style="white-space: pre-wrap;">: Ultra-fast hot module replacement</span></li><li value="6" style="text-align: start;"><b><strong class="text-bold" style="white-space: pre-wrap;">Zero Config</strong></b><span style="white-space: pre-wrap;">: Sensible defaults with full customization when you need it</span></li></ul><h2 id="why-choose-mantou" dir="ltr" style="text-align: start;"><span style="white-space: pre-wrap;">🎨 Why Choose MANTOU?</span></h2><p dir="ltr" style="text-align: start;"><a href="https://github.com/ppenter/mantou#-why-choose-mantou"></a></p><h3 id="simple-yet-powerful" dir="ltr" style="text-align: start;"><span style="white-space: pre-wrap;">Simple Yet Powerful</span></h3><p dir="ltr" style="text-align: start;"><a href="https://github.com/ppenter/mantou#simple-yet-powerful"></a></p><p dir="ltr" style="text-align: start;"><span style="white-space: pre-wrap;">Like a steamed bun, MANTOU is simple on the outside but packed with goodness inside. We eliminate complexity while keeping the power you need.</span></p><p dir="ltr"><br></p>
                     </div>
                 </main>
                 <div class="footer">
                     <div class="content">
                         <div class="date">
-                            <div>Jan 15, 2025</div>
+                            <div>Jan 16, 2025</div>
                         </div>
                          <div></div> 
                         
@@ -481,7 +481,7 @@
             <div class="stack__column stack__gap-4 stack__center">
                 
                 <div class="stack__row stack__center">
-                    <span><span>Year &copy; Company Name</span></span>
+                    <span><span>Year 2025 &copy; Mantou</span></span>
                 </div>
             </div>
         </footer>
@@ -515,8 +515,8 @@
     import {preInitTree} from 'https://ppenter.github.io/mantou/_lib/pre.js';
     preInitTree();
     await initPage();
-    await initTheme('system');
-    await initSearch('https://ppenter.github.io/mantou', '1736933559110');
+    await initTheme('light');
+    await initSearch('https://ppenter.github.io/mantou', '1736960793832');
     document.documentElement.style.visibility = 'visible';
     document.documentElement.style.opacity = '1';
     initToc();

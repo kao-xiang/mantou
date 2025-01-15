@@ -45,7 +45,7 @@
     </style>
     <script>
         function getInitialTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'system';
+            const savedTheme = localStorage.getItem('theme') || 'light';
             if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
             return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
@@ -489,7 +489,7 @@ export const generateMetadata: GenerateMetadata = async (ctx) => {
             <div class="stack__column stack__gap-4 stack__center">
                 
                 <div class="stack__row stack__center">
-                    <span><span>Year &copy; Company Name</span></span>
+                    <span><span>Year 2025 &copy; Mantou</span></span>
                 </div>
             </div>
         </footer>
@@ -523,8 +523,8 @@ export const generateMetadata: GenerateMetadata = async (ctx) => {
     import {preInitTree} from 'https://ppenter.github.io/mantou/_lib/pre.js';
     preInitTree();
     await initPage();
-    await initTheme('system');
-    await initSearch('https://ppenter.github.io/mantou', '1736933559110');
+    await initTheme('light');
+    await initSearch('https://ppenter.github.io/mantou', '1736960793832');
     document.documentElement.style.visibility = 'visible';
     document.documentElement.style.opacity = '1';
     initToc();
