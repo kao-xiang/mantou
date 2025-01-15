@@ -1,6 +1,10 @@
 // src/types/handler.ts
 import type { TSchema } from '@sinclair/typebox'
 
+export interface Store {
+  [key: string]: any
+}
+
 export interface RouteContext {
   query: TSchema
   params: TSchema
@@ -10,4 +14,5 @@ export interface RouteContext {
     headers: Record<string, string>
     status?: number
   }
+  store: Store
 }

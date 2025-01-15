@@ -1,7 +1,7 @@
 import { Elysia as Mantou, t } from "elysia"
 import type { RouteContext } from "./types/handler"
 import { Controller } from "./types/controller"
-import type { ServerOptions, GenerateMetadata, GetServerSideData, PageProps } from "./types/server"
+import type { ServerOptions, GenerateMetadata, GetServerSideData, PageProps, Store } from "./types/server"
 import { guard, handler } from "./core/file-base-router"
 import { loadConfig } from "./lib/fs"
 import { startServer } from "./server"
@@ -18,4 +18,4 @@ export {
   loadConfig
 }
 
-export type { RouteContext, ServerOptions, GenerateMetadata, GetServerSideData, PageProps }
+export type { Store, RouteContext, ServerOptions, GenerateMetadata, GetServerSideData, PageProps }

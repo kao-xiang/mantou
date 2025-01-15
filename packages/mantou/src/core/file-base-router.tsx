@@ -1,9 +1,10 @@
 import { Elysia, type Static, type TSchema } from "elysia";
 import { glob } from "glob";
 import path from "path";
-import type { BaseContext, ServerOptions } from "@/types/server";
+import type { ServerOptions } from "@/types/server";
 import fs from "fs/promises";
 import { writeRecursive } from "@/lib/fs";
+import type { HTTPHeaders } from "elysia/types";
 
 
 // Types
@@ -70,6 +71,23 @@ interface MiddlewareConfig<TConfig extends HandlerConfig = any> {
   filePath: string;
   path: string;
   handler: RouteHandlerFunction<TConfig>;
+}
+
+export interface Store {
+    [key: string]: any
+}
+
+export interface BaseContext {
+  request: Request;
+  path: string;
+  set: {
+    headers: HTTPHeaders
+    status?: number | string;
+    cookie?: Record<string, any>;
+  };
+  store: Store;
+  route: string;
+  headers?: Record<string, string | undefined>;
 }
 
 type Context<TConfig extends HandlerConfig> = BaseContext & {
@@ -396,10 +414,13 @@ else {
 
   private async processMiddleware(file: string): Promise<void> {
     const module = await import(file);
+    if(this.middlewares.find((middleware) => middleware.filePath === file)) {
+      return
+    }
     this.middlewares.push({
       filePath: file,
       path: this.filePathToRoutePath(file),
-      handler: module.default,
+      handler: module.default.handler,
     });
   }
 

@@ -117,6 +117,37 @@ export async function buildRoutes(
 
   await loadProjectReact(process.cwd());
 
+  app.onBeforeHandle(async (context) => {
+    const middlewarePaths = middlewares.map((m) => m.path);
+    const route = resolver.getRouteByPath(context.path);
+    const page = resolver.getPageByPath(context.path);
+    const hasPage = !!page || (route && context.request.method === "GET");
+    if(!route || hasPage) {
+      return;
+    }
+    const applicableMiddlewares = middlewarePaths.filter((path) =>
+      context.path.startsWith(path) && context.path.startsWith(route?.path)
+    );
+
+
+    if(applicableMiddlewares.length === 0) {
+      return;
+    }
+
+    const sortedMiddlewares = applicableMiddlewares.sort(
+      (a, b) => a.split("/").length - b.split("/").length
+    );
+
+    for(const middlewarePath of sortedMiddlewares) {
+      const middleware = middlewares.find((m) => m.path === middlewarePath);
+      const page = resolver.getPageByPath(context.path);
+      if(middleware) {
+        await middleware.handler(context);
+      }
+    }
+
+  });
+
   for(const page of resolver.pages) {
     app.get(page.path, async (ctx) => {
       try {

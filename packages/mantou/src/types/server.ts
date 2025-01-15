@@ -28,6 +28,10 @@ export interface PageProps<TProps extends {
     query: TProps['query']
 }
 
+export interface Store {
+    [key: string]: any
+}
+
 export interface BaseContext {
   request: Request;
   path: string;
@@ -36,7 +40,7 @@ export interface BaseContext {
     status?: number | string;
     cookie?: Record<string, any>;
   };
-  store: Record<string, any>;
+  store: Store;
   route: string;
   headers?: Record<string, string | undefined>;
 }

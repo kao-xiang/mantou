@@ -2,7 +2,7 @@
 import type { GetServerSideData, PageProps } from 'mantou';
 
 export const metadata = {
-    title: "Mantou 2"
+    title: "Mantou"
 }
 
 export default function Page({ data }: PageProps) {

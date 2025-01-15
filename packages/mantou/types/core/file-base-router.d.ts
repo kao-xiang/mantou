@@ -1,5 +1,6 @@
 import { type Static, type TSchema } from "elysia";
-import type { BaseContext, ServerOptions } from "@/types/server";
+import type { ServerOptions } from "@/types/server";
+import type { HTTPHeaders } from "elysia/types";
 type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
 type ContentType = "text" | "json" | "formdata" | "urlencoded" | "text/plain" | "application/json" | "multipart/form-data" | "application/x-www-form-urlencoded";
 interface HandlerConfig {
@@ -43,6 +44,21 @@ interface MiddlewareConfig<TConfig extends HandlerConfig = any> {
     filePath: string;
     path: string;
     handler: RouteHandlerFunction<TConfig>;
+}
+export interface Store {
+    [key: string]: any;
+}
+export interface BaseContext {
+    request: Request;
+    path: string;
+    set: {
+        headers: HTTPHeaders;
+        status?: number | string;
+        cookie?: Record<string, any>;
+    };
+    store: Store;
+    route: string;
+    headers?: Record<string, string | undefined>;
 }
 type Context<TConfig extends HandlerConfig> = BaseContext & {
     body: TConfig["body"] extends TSchema ? Static<TConfig["body"]> : undefined;
