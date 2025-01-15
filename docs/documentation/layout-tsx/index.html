@@ -488,8 +488,20 @@ export const generateMetadata: GenerateMetadata = async (ctx) => {
         <footer>
             <div class="stack__column stack__gap-4 stack__center">
                 
+                    <div class="stack__row stack__gap-7 stack__center">
+                        
+                            <div class="font-x-small">
+                                <a href="https://github.com/ppenter/mantou" target="_blank">Github</a>
+                            </div>
+                        
+                            <div class="font-x-small">
+                                <a href="https://discord.gg/nhJgvxUTpp" target="_blank">Discord</a>
+                            </div>
+                        
+                    </div>
+                
                 <div class="stack__row stack__center">
-                    <span><span>Year 2025 &copy; Mantou</span></span>
+                    <span><span>2025 &copy; Mantou</span></span>
                 </div>
             </div>
         </footer>
@@ -524,7 +536,7 @@ export const generateMetadata: GenerateMetadata = async (ctx) => {
     preInitTree();
     await initPage();
     await initTheme('light');
-    await initSearch('https://ppenter.github.io/mantou', '1736960793832');
+    await initSearch('https://ppenter.github.io/mantou', '1736960983083');
     document.documentElement.style.visibility = 'visible';
     document.documentElement.style.opacity = '1';
     initToc();
