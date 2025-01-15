@@ -30,80 +30,7 @@ cd my-app
 bun install
 bun run dev
 ```
-
-## 📁 Project Structure
-
-```
-my-app/
-├── src/
-│   ├── (app)/      # Your pages live here
-│   │   ├── page.tsx   # Root page
-│   │   └── layout.tsx # Root layout
-│   │   └── route.ts   # Route file
-│   └── _types/         # Type definitions (Skip _ folder)
-└── mantou.config.ts   # Configuration (optional)
-```
-
-## 💻 Code Examples
-
-### Type-Safe Route Handler
-```typescript
-// src/route.ts
-import { guard, handler } from 'mantou'
-
-// Guard
-const auth = (roles: string[]) => guard(async () => {
-  console.log('Auth guard: ', roles);
-  return true
-})
-
-// API Route
-export const get = handler(() => {
-  return `Hello World`;
-}, {}, [auth(['buyer'])])
-
-// SSR data
-export const data = () => ({
-  name: 'John Doe',
-  age: 30
-})
-```
-
-### Layout Component
-```typescript
-// src/layout.tsx
-import './index.css'
-
-export default function Layout({ children }: any) {
-    return <div>{children}</div>
-}
-```
-
-### Landing Page
-```typescript
-// src/page.tsx
-export default function Page({ data }: any) {
-    return (
-        <div className="container">
-            <header className="header">
-                <div className="logo">🍞 mantou</div>
-                <div className="subtitle">
-                    The Next Generation Web Framework Powered by Bun
-                </div>
-            </header>
-            <main>
-                <div className="card-grid">
-                    <div className="card">
-                        <h2>⚡️ Super Fast</h2>
-                        <p>Built on Bun for exceptional performance.</p>
-                    </div>
-                    {/* More feature cards */}
-                </div>
-            </main>
-        </div>
-    )
-}
-```
+Later in [Documentation](https://ppenter.github.io/mantou/)
 
 ## 🎯 Roadmap
 
@@ -119,13 +46,6 @@ export default function Page({ data }: any) {
 
 ### Simple Yet Powerful
 Like a steamed bun, MANTOU is simple on the outside but packed with goodness inside. We eliminate complexity while keeping the power you need.
-
-### Developer Joy
-We believe development should be fun. MANTOU brings joy with:
-- Instant feedback loops
-- Clear error messages
-- Intuitive APIs
-- Zero-config that "just works"
 
 ### Performance First
 Built on Bun, MANTOU is designed for speed:
@@ -176,7 +96,7 @@ See our [Contributing Guide](CONTRIBUTING.md) for more details.
 
 ## 📘 Documentation
 
-Visit [docs.mantou.dev](https://docs.mantou.dev) for full documentation.
+Visit [this](https://ppenter.github.io/mantou/) for full documentation.
 
 ## 💬 Community
 
