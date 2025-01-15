@@ -6,6 +6,9 @@
 [![last-commit](https://img.shields.io/github/last-commit/ppenter/mantou?style=default&logo=git&logoColor=white&color=ffca7f)](https://github.com/ppenter/mantou/commits/master)
 [![repo-top-language](https://img.shields.io/github/languages/top/ppenter/mantou?style=default&color=ffca7f)](https://github.com/ppenter/mantou/search?l=typescript)
 
+[![Discord](https://img.shields.io/discord/1329129791483416596?color=7289da&label=discord&logo=discord&logoColor=white)](https://discord.gg/nhJgvxUTpp)
+[![Reddit](https://img.shields.io/reddit/subreddit-subscribers/mantoubun?style=social)](https://www.reddit.com/r/mantoubun/)
+
 ## 🌟 Overview
 
 MANTOU (馒头) is a delightfully simple yet powerful web framework that brings together the best of Next.js patterns with Bun's blazing speed. Like its namesake - the fluffy Chinese steamed bun - MANTOU is light, satisfying, and gets the job done without unnecessary complexity.
