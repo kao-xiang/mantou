@@ -1,0 +1,30 @@
+{
+    "/mantou/": {
+        "title": "Introduction",
+        "text": "Introduction Mantou Is The Next Generation Web Framework Powered by Bun 🌟 Overview MANTOU (馒头) is a delightfully simple yet powerful web framework that brings together the best of Next.js patterns with Bun's blazing speed. Like its namesake - the fluffy Chinese steamed bun - MANTOU is light, satisfying, and gets the job done without unnecessary complexity. ⚡️ Key Features 0ms Cold Start : Powered by Bun's lightning-fast runtime Type Safety Without Tears : Automatic type inference that just works File-Based Magic : Next.js-style routing you already know and love API Docs That Write Themselves : Automatic Swagger generation Hot Like 🔥 : Ultra-fast hot module replacement Zero Config : Sensible defaults with full customization when you need it 🎨 Why Choose MANTOU? Simple Yet Powerful Like a steamed bun, MANTOU is simple on the outside but packed with goodness inside. We eliminate complexity while keeping the power you need."
+    },
+    "/mantou/documentation/quick-start/": {
+        "title": "Quick Start",
+        "text": "Quick Start Shell # Create your next amazing project \n bunx  create-mantou-app  my-app \n \n # Jump into the action \n cd  my-app \n bun  install \n bun  run  dev 📁 Project Structure Shell my-app/ \n ├──  src/ \n │    ├──  app/       # Your pages live here \n │    │    ├──  page.tsx    # Root page \n │    │    └──  layout.tsx  # Root layout \n │    │    └──  route.ts    # Route file \n │    └──  components/ \n └──  mantou.config.ts    # Configuration File"
+    },
+    "/mantou/documentation/page-tsx/": {
+        "title": "page.tsx",
+        "text": "page.tsx page.tsx is the page file in file-based router TSX export  default  function  Page ({ data } :  PageProps)  { \n     return  ( \n         < div  className = \"container\" > \n             < header  className = \"header\" > \n                 < div  className = \"logo\" >🍞 mantou</ div > \n                 < div  className = \"subtitle\" > \n                     The Next Generation Web Framework Powered by Bun \n                 </ div > \n             </ header > \n             < main > \n                 < div  className = \"card-grid\" > \n                     < div  className = \"card\" > \n                         < h2 >⚡️ Super Fast</ h2 > \n                         < p >Built on Bun for exceptional performance.</ p > \n                     </ div > \n                     { /* More feature cards */ } \n                 </ div > \n             </ main > \n         </ div > \n     ) \n } \n \n export  const  getServerSideData :  GetServerSideData  =  async  ( ctx )  =>  { \n     return  { \n         name:  'Mantou' \n     } \n } \n \n export  const  generateMetadata :  GenerateMetadata  =  async  ( ctx )  =>  { \n     return  { \n         title:  \"Mantou Homepage\" , \n         description:  \"Very Fast !\" \n     } \n }"
+    },
+    "/mantou/documentation/layout-tsx/": {
+        "title": "layout.tsx",
+        "text": "layout.tsx layout.tsx is a layout file in file-based-router TSX export  default function Layout({ children, data }: any) { \n     return  < di v > {children} < /di v > \n } \n \n export  const getServerSideData: GetServerSideData = async ( ctx ) = >  { \n     return  { \n         name:  'Mantou' \n     } \n } \n \n export  const generateMetadata: GenerateMetadata = async ( ctx ) = >  { \n     return  { \n         title:  \"Mantou Homepage\", \n         description:  \"Very Fast !\" \n     } \n }"
+    },
+    "/mantou/documentation/route-ts/": {
+        "title": "route.ts",
+        "text": "route.ts This is an api handlers file TypeScript // src/app/route.ts \n \n import  { t, handler }  from  \"mantou\" \n import  { auth }  from  \"@/guards/auth\" \n \n export  const  get  =  handler (()  =>  { \n   return  \"Hello Mantou\" ; \n }, , [ \n auth ([ \"buyer\" ]) \n ]) \n \n export  const  post  =  handler (()  =>  { \n   return  \"Update Something\" ; \n }, , [ \n auth ([ \"buyer\" ]) \n ]) \n \n export  const  delete  =  handler (()  =>  { \n   return  \"Delete Something\" ; \n }, , [ \n auth ([ \"buyer\" ]) \n ]) \n \n export  const  patch  =  handler (()  =>  { \n   return  \"Patch Something\" ; \n }, , [ \n auth ([ \"buyer\" ]) \n ]) \n \n export  const  put  =  handler (()  =>  { \n   return  \"Put Something\" ; \n }, , [ \n auth ([ \"buyer\" ]) \n ])"
+    },
+    "/mantou/documentation/middleware-ts/": {
+        "title": "middleware.ts",
+        "text": "middleware.ts Layout but for route.ts TypeScript // src/app/middleware.ts \n \n import  { handler }  from  \"mantou\" \n \n export  default  handler ((ctx)  =>  { \n   ctx.store.user  =  \"John oe\" \n } )"
+    },
+    "/mantou/documentation/guard/": {
+        "title": "guard",
+        "text": "guard Guard use to check permission for route TypeScript import  { guard, handler, t,  type  Store }  from  'mantou' \n \n const  auth  =  ( roles :  string [])  =>  guard ( async  ()  =>  { \n   console. log ( 'Auth guard: ' , roles); \n   return  true  // return boolean only \n })"
+    }
+}
