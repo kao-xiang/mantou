@@ -232,7 +232,7 @@ export async function buildRoutes(
       continue;
     }
     (app as any)[route.method](routePath, async (ctx: any) => {
-      const handler = await import(route.filePath)
+      const handler = await import(`${route.filePath}?imported=${Date.now()}`);
       return await handler[route.method]?.handler(ctx)
     }, {
       beforeHandle: async (context: any) => {
@@ -251,6 +251,25 @@ export async function buildRoutes(
         );
 
         for (const middleware of closestMiddlewares) {
+          // applu middleware guards
+          for (const guard of middleware.guards) {
+            // Validate guard schemas
+            for (const schemaType of ["body", "query", "params"] as const) {
+              const { valid, errors } = validateSchema(
+                guard.config?.[schemaType],
+                context[schemaType]
+              );
+
+              if (!valid) {
+                throw {
+                  message: `${schemaType} validation failed for guard`,
+                  errors,
+                };
+              }
+            }
+
+            await guard.handler(context);
+          }
           await middleware.handler(context);
         }
 

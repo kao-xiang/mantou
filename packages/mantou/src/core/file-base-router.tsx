@@ -71,6 +71,7 @@ interface MiddlewareConfig<TConfig extends HandlerConfig = any> {
   filePath: string;
   path: string;
   handler: RouteHandlerFunction<TConfig>;
+  guards: Guard[];
 }
 
 export interface Store {
@@ -421,6 +422,7 @@ else {
       filePath: file,
       path: this.filePathToRoutePath(file),
       handler: module.default.handler,
+      guards: module.default.guards ?? []
     });
   }
 

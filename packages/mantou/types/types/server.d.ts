@@ -21,9 +21,9 @@ export interface PageProps<TProps extends {
     params?: any;
     query?: any;
 } = any> {
-    data: TProps['data'];
-    params: TProps['params'];
-    query: TProps['query'];
+    data: TProps["data"];
+    params: TProps["params"];
+    query: TProps["query"];
 }
 export interface Store {
     [key: string]: any;
@@ -52,10 +52,10 @@ export type GetServerSideData<T extends {
     params?: any;
     query?: any;
 } = any> = (context: {
-    data: T['data'];
-    params: T['params'];
-    query: T['query'];
-} & BaseContext) => Promise<T['data']> | T['data'];
+    data: T["data"];
+    params: T["params"];
+    query: T["query"];
+} & BaseContext) => Promise<T["data"]> | T["data"];
 export type GenerateMetadata<T extends {
     params?: any;
     query?: any;
@@ -63,3 +63,12 @@ export type GenerateMetadata<T extends {
     params: any;
     query: any;
 }> = (context: T & BaseContext) => MetaData;
+export interface ValidationResult {
+    valid: boolean;
+    errors?: any;
+}
+export interface ReactDependencies {
+    React: typeof import("react");
+    ReactDOMServer: typeof import("react-dom/server");
+    ReactRouter: typeof import("react-router");
+}

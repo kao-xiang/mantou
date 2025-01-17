@@ -44,6 +44,7 @@ interface MiddlewareConfig<TConfig extends HandlerConfig = any> {
     filePath: string;
     path: string;
     handler: RouteHandlerFunction<TConfig>;
+    guards: Guard[];
 }
 export interface Store {
     [key: string]: any;
