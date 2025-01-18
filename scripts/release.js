@@ -31,7 +31,7 @@ async function buildAndPublish() {
     if (fs.statSync(path.join(packagesDir, pkg)).isDirectory()) {
       console.log(`Publishing ${pkg}...`);
       try {
-        const output = execSync('bun semantic-release', {
+        const output = execSync('bun run semantic-release', {
           env: {
             ...process.env,
             PACKAGE_NAME: pkg
