@@ -1,3 +1,10 @@
+# create-mantou-app [1.0.0-canary.2](https://github.com/ppenter/mantou/compare/create-mantou-app@1.0.0-canary.1...create-mantou-app@1.0.0-canary.2) (2025-01-18)
+
+
+### Bug Fixes
+
+* update sematic-release ([dd57d41](https://github.com/ppenter/mantou/commit/dd57d41d27896afdf11bc43cd46617e8d9300d60))
+
 # create-mantou-app 1.0.0-canary.1 (2025-01-18)
 
 
