@@ -1,0 +1,48 @@
+name: Trigger on Version Bump (Monorepo)
+
+on:
+  push:
+    branches:
+      - main  # Trigger only on the main branch
+    paths:
+      - "packages/**/package.json"  # Only trigger on changes to any package.json in the monorepo
+
+jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Detect version bumps
+        id: check_versions
+        run: |
+          # Initialize a flag for version bumps
+          version_bumped=false
+
+          # Loop through all package.json files in the packages directory
+          for package_json in $(git diff --name-only HEAD^ HEAD -- packages/**/package.json); do
+            echo "Checking $package_json"
+
+            # Get the current version from the package.json in the latest commit
+            current_version=$(jq -r .version $package_json)
+
+            # Get the previous version from the last commit
+            git show HEAD^:$package_json > previous_package.json
+            previous_version=$(jq -r .version previous_package.json)
+
+            if [ "$current_version" != "$previous_version" ]; then
+              echo "Version bumped in $package_json from $previous_version to $current_version"
+              version_bumped=true
+            else
+              echo "No version bump detected in $package_json"
+            fi
+          done
+
+          # Export the result
+          echo "version_bumped=$version_bumped" >> $GITHUB_ENV
+
+      - name: Execute job if version bumped
+        if: env.version_bumped == 'true'
+        run: |
+          echo "At least one package version was bumped. Proceeding with the next steps..."
