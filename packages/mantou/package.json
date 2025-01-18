@@ -1,6 +1,13 @@
 {
   "name": "mantou",
-  "version": "1.0.14-dev.5",
+  "version": "0.0.0-semantically-released",
+  "publishConfig": {
+    "access": "public",
+    "tag": "latest"
+  },
+  "release": {
+    "extends": "../../release.config.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ppenter/mantou.git"
