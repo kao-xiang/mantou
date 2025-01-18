@@ -1,11 +1,14 @@
 const config = {
   tagFormat: 'v${version}',
   branches: [
-    'master',
+    {
+      name: 'master'
+    },
     {
       name: 'develop',
+      channel: 'canary',
       prerelease: 'canary',
-      channel: 'canary'
+      base: 'master'
     }
   ],
   plugins: process.env.GITHUB_REF === 'refs/heads/develop' 
