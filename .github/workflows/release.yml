@@ -101,6 +101,9 @@ jobs:
             fi
           done
 
+      - name: NPM Authenticate
+        run: echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+        
       - name: Publish to NPM
         run: |
           for pkg in packages/*; do
