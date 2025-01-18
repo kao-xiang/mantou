@@ -1,6 +1,6 @@
 {
   "name": "mantou",
-  "version": "1.0.0",
+  "version": "1.0.15",
   "publishConfig": {
     "access": "public",
     "tag": "latest",

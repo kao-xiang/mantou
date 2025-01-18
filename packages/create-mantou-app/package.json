@@ -1,7 +1,7 @@
 {
   "name": "create-mantou-app",
   "module": "./dist/index.js",
-  "version": "1.0.0",
+  "version": "1.0.15",
   "publishConfig": {
     "access": "public",
     "tag": "latest",
@@ -31,8 +31,7 @@
     "commander": "^12.1.0",
     "fs-extra": "^11.2.0",
     "picocolors": "^1.1.1",
-    "prompts": "^2.4.2",
-    "mantou": "workspace:*"
+    "prompts": "^2.4.2"
   },
   "homepage": "https://github.com/ppenter/mantou",
   "repository": {
