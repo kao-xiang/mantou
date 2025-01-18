@@ -8,36 +8,11 @@ const config = {
     }
   ],
   plugins: [
-    [
-      '@semantic-release/commit-analyzer',
-      {
-        preset: 'angular'
-      }
-    ],
+    '@semantic-release/commit-analyzer',
     '@semantic-release/release-notes-generator',
     '@semantic-release/changelog',
-    [
-      '@semantic-release/npm',
-      {
-        npmPublish: true,
-        pkgRoot: '.'
-      }
-    ],
-    [
-      '@semantic-release/npm',
-      {
-        npmPublish: true,
-        pkgRoot: '.',
-        registry: 'https://npm.pkg.github.com'
-      }
-    ],
-    [
-      '@semantic-release/github',
-      {
-        successComment: false,
-        failTitle: false
-      }
-    ],
+    '@semantic-release/npm',
+    '@semantic-release/github',
     [
       '@semantic-release/git',
       {
