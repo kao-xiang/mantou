@@ -1,9 +1,14 @@
 name: Publish Packages
 
 on:
+  # For develop branch
   push:
     branches:
       - develop
+  # For master branch
+  pull_request:
+    types: [closed]
+    branches:
       - master
 
 jobs:
@@ -12,7 +17,11 @@ jobs:
     permissions:
       contents: write
       packages: write
+      pull-requests: write
 
+    # Skip if it's a PR to master that's not merged
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,6 +38,11 @@ jobs:
           node-version: '20.x'
           registry-url: 'https://registry.npmjs.org/'
 
+      - name: Git config
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
       - name: "Create .npmrc"
         run: |
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
@@ -42,6 +56,7 @@ jobs:
 
       - name: Get commit messages
         id: get_commits
+        if: github.event_name == 'pull_request'
         run: |
           COMMITS=$(git log --format="%s" $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD)
           echo "commits<<EOF" >> $GITHUB_OUTPUT
@@ -51,7 +66,7 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          BRANCH=${GITHUB_REF#refs/heads/}
+          BRANCH="${{ github.event_name == 'pull_request' && 'master' || github.ref_name }}"
           
           # Get the latest version from npm for all packages
           LATEST_VERSIONS=()
@@ -65,21 +80,18 @@ jobs:
           
           # Find the highest version
           LATEST_VERSION=$(printf '%s\n' "${LATEST_VERSIONS[@]}" | sort -V | tail -n1)
-          
-          if [ "$BRANCH" = "develop" ]; then
-            # For develop branch: get max canary version
-              VERSIONS_JSON=$(npm view $PKG_NAME versions --json 2>/dev/null || echo "[]")
-              CURRENT_CANARY_MAX=$(echo "$VERSIONS_JSON" | node -e "
-                const versions = JSON.parse(process.argv[1]);
-                const canaryVersions = versions
-                  .filter(v => v.startsWith('${LATEST_VERSION}-canary.'))
-                  .map(v => parseInt(v.split('.').pop()))
-                  .filter(n => !isNaN(n));
-                console.log(Math.max(...canaryVersions, 0));
-              " "$VERSIONS_JSON")
-              NEW_VERSION="${LATEST_VERSION}-canary.$((CURRENT_CANARY_MAX + 1))"
-          else
-            # For master branch: semantic versioning based on commit messages
+
+          if [ "$BRANCH" = "master" ]; then
+            # For master branch: first check if current version is canary
+            CURRENT_VERSION=$(node -p "require('./package.json').version")
+            
+            # If it's a canary version, remove the suffix first
+            if [[ "$CURRENT_VERSION" == *"-canary"* ]]; then
+              BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
+              LATEST_VERSION=$BASE_VERSION
+            fi
+
+            # Then do semantic versioning based on commit messages
             COMMITS="${{ steps.get_commits.outputs.commits }}"
             
             if echo "$COMMITS" | grep -q "^feat!:\|^BREAKING CHANGE"; then
@@ -92,18 +104,81 @@ jobs:
               # Patch version for fixes
               NEW_VERSION=$(echo $LATEST_VERSION | awk -F. '{$3++; print $1"."$2"."$3}' OFS=.)
             fi
+          else
+            # For develop branch: get max canary version
+            VERSIONS_JSON=$(npm view $PKG_NAME versions --json 2>/dev/null || echo "[]")
+            
+            # Extract the base version (without canary suffix) and find the highest one
+            BASE_VERSION=$(echo "$VERSIONS_JSON" | node -e "
+              const versions = JSON.parse(process.argv[1]);
+              const baseVersions = versions
+                .filter(v => !v.includes('canary'))
+                .sort((a, b) => {
+                  const [aMajor, aMinor, aPatch] = a.split('.').map(Number);
+                  const [bMajor, bMinor, bPatch] = b.split('.').map(Number);
+                  if (aMajor !== bMajor) return aMajor - bMajor;
+                  if (aMinor !== bMinor) return aMinor - bMinor;
+                  return aPatch - bPatch;
+                });
+              console.log(baseVersions[baseVersions.length - 1]);
+            " "$VERSIONS_JSON")
+            
+            # Get the highest canary number for the base version
+            CURRENT_CANARY_MAX=$(echo "$VERSIONS_JSON" | node -e "
+              const versions = JSON.parse(process.argv[1]);
+              const baseVersion = process.argv[2];
+              const canaryVersions = versions
+                .filter(v => v.startsWith('${BASE_VERSION}-canary.'))
+                .map(v => parseInt(v.split('.').pop()))
+                .filter(n => !isNaN(n));
+              console.log(Math.max(...canaryVersions, 0));
+            " "$VERSIONS_JSON" "$BASE_VERSION")
+            
+            NEW_VERSION="${BASE_VERSION}-canary.$((CURRENT_CANARY_MAX + 1))"
           fi
           
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Update package versions
+      - name: Update versions
         run: |
           NEW_VERSION=${{ steps.version.outputs.new_version }}
+          
+          # Update root package.json
+          if [ -f "package.json" ]; then
+            sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" package.json
+          fi
+          
+          # Update all package versions in packages directory
           for pkg in packages/*; do
             if [ -f "$pkg/package.json" ]; then
               sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" $pkg/package.json
+              
+              # Update internal dependencies versions
+              PKG_NAME=$(node -p "require('./$pkg/package.json').name")
+              for dep_pkg in packages/*; do
+                if [ -f "$dep_pkg/package.json" ]; then
+                  # Update dependencies and peerDependencies
+                  sed -i "s/\"$PKG_NAME\": \".*\"/\"$PKG_NAME\": \"$NEW_VERSION\"/" $dep_pkg/package.json
+                fi
+              done
             fi
           done
+
+      - name: Push develop version
+        if: github.event_name == 'push'
+        run: |
+          NEW_VERSION=${{ steps.version.outputs.new_version }}
+          git add package.json packages/*/package.json
+          git commit -m "chore: update version to ${NEW_VERSION} [skip ci]"
+          git push origin develop
+
+      - name: Push master version
+        if: github.event_name == 'pull_request'
+        run: |
+          NEW_VERSION=${{ steps.version.outputs.new_version }}
+          git add package.json packages/*/package.json
+          git commit -m "chore: update version to ${NEW_VERSION} [skip ci]"
+          git push origin master
 
       - name: Build packages
         run: |
@@ -120,7 +195,7 @@ jobs:
           for pkg in packages/*; do
             if [ -f "$pkg/package.json" ]; then
               cd $pkg
-              if [ "$GITHUB_REF" = "refs/heads/develop" ]; then
+              if [ "${{ github.event_name }}" = "push" ]; then
                 npm publish --tag canary
               else
                 npm publish
@@ -130,7 +205,7 @@ jobs:
           done
 
       - name: Create Release
-        if: github.ref == 'refs/heads/master'
+        if: github.event_name == 'pull_request'
         uses: ncipollo/release-action@v1
         with:
           tag: v${{ steps.version.outputs.new_version }}
