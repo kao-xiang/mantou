@@ -69,6 +69,8 @@ jobs:
           if [ "$BRANCH" = "develop" ]; then
             # For develop branch: get max canary version
               VERSIONS_JSON=$(npm view $PKG_NAME versions --json 2>/dev/null || echo "[]")
+              # print VERSIONS_JSON
+              echo "versions=$VERSIONS_JSON" >> $GITHUB_OUTPUT
               CURRENT_CANARY_MAX=$(echo "$VERSIONS_JSON" | node -e "
                 const versions = JSON.parse(process.stdin.read());
                 const canaryVersions = versions
