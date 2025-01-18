@@ -1,0 +1,18 @@
+{
+    "packages": {
+      "packages/create-mantou-app": {},
+      "packages/mantou": {}
+    },
+    "bootstrap-sha": "main",
+    "release-type": "node",
+    "include-component-in-tag": true,
+    "tag-separator": "-",
+    "pull-request-title-pattern": "chore: release ${version}",
+    "pull-request-header": ":robot: Release PR",
+    "changelog-sections": [
+      { "type": "feat", "section": "Features", "hidden": false },
+      { "type": "fix", "section": "Bug Fixes", "hidden": false },
+      { "type": "perf", "section": "Performance Improvements", "hidden": false },
+      { "type": "chore", "section": "Miscellaneous", "hidden": false }
+    ]
+  }
