@@ -72,7 +72,7 @@ jobs:
               # print VERSIONS_JSON
               echo "versions=$VERSIONS_JSON" >> $GITHUB_OUTPUT
               CURRENT_CANARY_MAX=$(echo "$VERSIONS_JSON" | node -e "
-                const versions = JSON.parse(process.stdin.read());
+                const versions = JSON.parse(VERSIONS_JSON);
                 const canaryVersions = versions
                   .filter(v => v.startsWith('${LATEST_VERSION}-canary.'))
                   .map(v => parseInt(v.split('.').pop()))
