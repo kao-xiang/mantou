@@ -172,13 +172,21 @@ jobs:
           git commit -m "chore: update version to ${NEW_VERSION} [skip ci]"
           git push origin develop
 
-      - name: Push master version
+      - name: Push master version and create stable tag
         if: github.event_name == 'pull_request'
         run: |
           NEW_VERSION=${{ steps.version.outputs.new_version }}
+          
+          # Create and push version commit
           git add package.json packages/*/package.json
           git commit -m "chore: update version to ${NEW_VERSION} [skip ci]"
           git push origin master
+          
+          # Create and push stable tag
+          git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
+          git tag -a "stable" -m "Latest stable release v${NEW_VERSION}" -f
+          git push origin "v${NEW_VERSION}"
+          git push origin stable -f
 
       - name: Build packages
         run: |
@@ -198,17 +206,19 @@ jobs:
               if [ "${{ github.event_name }}" = "push" ]; then
                 npm publish --tag canary
               else
-                npm publish
+                npm publish --tag latest
+                npm dist-tag add "$(node -p "require('./package.json').name")@${{ steps.version.outputs.new_version }}" stable
               fi
               cd ../..
             fi
           done
 
-      - name: Create Release
+      - name: Create GitHub Release
         if: github.event_name == 'pull_request'
         uses: ncipollo/release-action@v1
         with:
           tag: v${{ steps.version.outputs.new_version }}
           name: Release v${{ steps.version.outputs.new_version }}
           generateReleaseNotes: true
+          makeLatest: true
           token: ${{ secrets.GH_TOKEN }}
