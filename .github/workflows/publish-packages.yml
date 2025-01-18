@@ -6,6 +6,12 @@ on:
       - main  # Trigger only on pushes to the main branch
     paths:
       - "packages/**/package.json"  # Watch for package.json changes
+    # Ensure this event triggers on merge even if a PR is merged
+  pull_request:
+    types:
+      - closed  # Trigger when a PR is closed (merged or closed without merging)
+    branches:
+      - main  # Ensure PR merges into the main branch
 
 jobs:
   publish:
