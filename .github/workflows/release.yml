@@ -103,16 +103,17 @@ jobs:
 
       - name: NPM Authenticate
         run: echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
-        
+
+      
       - name: Publish to NPM
         run: |
           for pkg in packages/*; do
             if [ -f "$pkg/package.json" ]; then
               cd $pkg
               if [ "$GITHUB_REF" = "refs/heads/develop" ]; then
-                npm publish --tag canary
+                npm publish --access public --tag canary
               else
-                npm publish
+                npm publish --access public
               fi
               cd ../..
             fi
