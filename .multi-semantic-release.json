@@ -1,0 +1,9 @@
+{
+    "dependencies": {
+      "packages/create-mantou-app": [
+        "packages/mantou"
+      ]
+    },
+    "versionFormatForManual": "v${version}",
+    "plugins": false
+  }
