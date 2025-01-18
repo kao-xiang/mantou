@@ -2,6 +2,8 @@
 
 *The Next Generation Web Framework Powered by Bun*
 
+![preview](/images/mantou-preview.png)
+
 [![license](https://img.shields.io/github/license/ppenter/mantou?style=default&logo=opensourceinitiative&logoColor=white&color=ffca7f)](LICENSE)
 [![last-commit](https://img.shields.io/github/last-commit/ppenter/mantou?style=default&logo=git&logoColor=white&color=ffca7f)](https://github.com/ppenter/mantou/commits/master)
 [![repo-top-language](https://img.shields.io/github/languages/top/ppenter/mantou?style=default&color=ffca7f)](https://github.com/ppenter/mantou/search?l=typescript)

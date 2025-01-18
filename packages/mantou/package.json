@@ -1,6 +1,6 @@
 {
   "name": "mantou",
-  "version": "1.0.13",
+  "version": "1.0.14-dev.1",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ppenter/mantou.git"
@@ -62,8 +62,5 @@
     "format": "prettier --write ."
   },
   "type": "module",
-  "types": "./types/index.d.ts",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  }
+  "types": "./types/index.d.ts"
 }
