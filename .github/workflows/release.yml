@@ -33,4 +33,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: bunx semantic-release-plus multi
+          NODE_OPTIONS: "--no-warnings"
+        run: bunx multi-semantic-release
