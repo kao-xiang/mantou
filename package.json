@@ -4,29 +4,32 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun run --cwd packages/mantou dev",
-    "build": "bun run --cwd packages/mantou build",
+    "dev:mantou": "bun run --cwd packages/mantou dev",
+    "dev:create-mantou-app": "bun run --cwd packages/create-mantou-app dev",
+    "build:mantou": "bun run --cwd packages/mantou build",
+    "build:create-mantou-app": "bun run --cwd packages/create-mantou-app build",
+    "build": "bun run build:mantou && bun run build:create-mantou-app",
     "test": "bun test",
     "lint": "eslint .",
-    "release": "multi-semantic-release"
+    "release": "bun scripts/release.js"
   },
   "workspaces": ["packages/*"],
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/exec": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.1",
+    "@semantic-release/npm": "^12.0.1",
+    "@semantic-release/release-notes-generator": "^14.0.3",
     "@types/bun": "latest",
     "globals": "^15.14.0",
     "rimraf": "^5.0.5",
-    "semantic-release-plus": "^20.0.0",
+    "semantic-release": "^24.2.1",
+    "semantic-release-monorepo": "^8.0.2",
     "typescript": "^5.2.2",
-    "typescript-eslint": "^8.18.1",
-    "@semantic-release/changelog": "6.0.3",
-    "@semantic-release/commit-analyzer": "9.0.2",
-    "@semantic-release/git": "10.0.1",
-    "@semantic-release/github": "8.0.7",
-    "@semantic-release/npm": "9.0.2",
-    "@semantic-release/release-notes-generator": "10.0.3",
-    "multi-semantic-release": "3.0.2",
-    "semantic-release": "19.0.5"
+    "typescript-eslint": "^8.18.1"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
