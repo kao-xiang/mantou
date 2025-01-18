@@ -34,10 +34,10 @@ jobs:
       - name: "Create .npmrc"
         run: |
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
-          echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${GH_TOKEN}" >> .npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Install dependencies
         run: bun install
@@ -74,4 +74,4 @@ jobs:
           tag: v${{ fromJson(github.event.pull_request.title).version }}
           name: ${{ github.event.pull_request.title }}
           generateReleaseNotes: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
