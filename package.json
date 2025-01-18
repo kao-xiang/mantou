@@ -4,9 +4,10 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "bun build --target=bun ./src/index.ts --outfile=dist/index.js && bun run build:declaration",
-    "build:declaration": "tsc --emitDeclarationOnly --project tsconfig.types.json",
-    "postbuild": "rimraf tsconfig.types.tsbuildinfo"
+    "dev": "bun run --cwd packages/mantou dev",
+    "build": "bun run --cwd packages/mantou build",
+    "test": "bun test",
+    "lint": "eslint ."
   },
   "workspaces": ["packages/*"],
   "devDependencies": {

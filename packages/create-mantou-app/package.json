@@ -1,10 +1,11 @@
 {
   "name": "create-mantou-app",
   "module": "./dist/index.js",
-  "version": "0.0.0-semantically-released",
+  "version": "0.0.0",
   "publishConfig": {
     "access": "public",
-    "tag": "latest"
+    "tag": "latest",
+    "registry": "https://registry.npmjs.org/"
   },
   "release": {
     "extends": "../../release.config.cjs"
