@@ -3,6 +3,7 @@
 *The Next Generation Web Framework Powered by Bun*
 
 ![preview](/images/mantou-preview.png)
+<i style="display:flex;width: 100%; justify-content: center;">Effortless Fullstack: Typesafe & Documented.</i>
 
 [![license](https://img.shields.io/github/license/ppenter/mantou?style=default&logo=opensourceinitiative&logoColor=white&color=ffca7f)](LICENSE)
 [![last-commit](https://img.shields.io/github/last-commit/ppenter/mantou?style=default&logo=git&logoColor=white&color=ffca7f)](https://github.com/ppenter/mantou/commits/master)
