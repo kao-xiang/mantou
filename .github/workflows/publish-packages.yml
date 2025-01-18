@@ -34,12 +34,19 @@ jobs:
         id: check_versions
         run: |
           packages_to_publish=""
+          # Get the base commit (previous commit or merge base)
+          if git log --oneline HEAD^1; then
+            previous_commit=$(git rev-parse HEAD^1)
+          else
+            previous_commit=$(git merge-base HEAD HEAD~1)
+          fi
+
           # Loop through changed package.json files
-          for package_json in $(git diff --name-only HEAD^ HEAD -- packages/**/package.json); do
+          for package_json in $(git diff --name-only $previous_commit HEAD -- packages/**/package.json); do
             echo "Checking $package_json"
             
             current_version=$(jq -r .version $package_json)
-            git show HEAD^:$package_json > previous_package.json
+            git show $previous_commit:$package_json > previous_package.json
             previous_version=$(jq -r .version previous_package.json)
 
             # Check if version is bumped
