@@ -31,7 +31,7 @@ jobs:
           node-version: '20.x'
           registry-url: 'https://registry.npmjs.org/'
 
-      - name: "Create .npmrc"
+      - name: "Create .npmrc for NPM and GitHub Packages"
         run: |
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
           echo "//npm.pkg.github.com/:_authToken=${GH_TOKEN}" >> .npmrc
