@@ -69,16 +69,15 @@ jobs:
           if [ "$BRANCH" = "develop" ]; then
             # For develop branch: get max canary version
               VERSIONS_JSON=$(npm view $PKG_NAME versions --json 2>/dev/null || echo "[]")
-              echo "versions=$VERSIONS_JSON" >> $GITHUB_OUTPUT
               CURRENT_CANARY_MAX=$(echo "$VERSIONS_JSON" | node -e "
-                const versions = JSON.parse($VERSIONS_JSON);
+                const versions = JSON.parse(process.argv[1]);
                 const canaryVersions = versions
                   .filter(v => v.startsWith('${LATEST_VERSION}-canary.'))
                   .map(v => parseInt(v.split('.').pop()))
                   .filter(n => !isNaN(n));
                 console.log(Math.max(...canaryVersions, 0));
-              ")
-            NEW_VERSION="${LATEST_VERSION}-canary.$((CURRENT_CANARY_MAX + 1))"
+              " "$VERSIONS_JSON")
+              NEW_VERSION="${LATEST_VERSION}-canary.$((CURRENT_CANARY_MAX + 1))"
           else
             # For master branch: semantic versioning based on commit messages
             COMMITS="${{ steps.get_commits.outputs.commits }}"
