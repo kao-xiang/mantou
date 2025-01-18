@@ -69,7 +69,8 @@ jobs:
           if [ "$BRANCH" = "develop" ]; then
             # For develop branch: increment canary version
             CANARY_COUNT=$(npm view $PKG_NAME versions --json 2>/dev/null | grep -c "$LATEST_VERSION-canary")
-            NEW_VERSION="${LATEST_VERSION}-canary.${CANARY_COUNT + 1}"
+            CANARY_COUNT=$((CANARY_COUNT + 1))  # Always increment by 1
+            NEW_VERSION="${LATEST_VERSION}-canary.${CANARY_COUNT}"
           else
             # For master branch: semantic versioning based on commit messages
             COMMITS="${{ steps.get_commits.outputs.commits }}"
