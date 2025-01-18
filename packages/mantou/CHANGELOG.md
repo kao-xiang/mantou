@@ -1,3 +1,10 @@
+# mantou [1.0.0-canary.2](https://github.com/ppenter/mantou/compare/mantou@1.0.0-canary.1...mantou@1.0.0-canary.2) (2025-01-18)
+
+
+### Bug Fixes
+
+* update sematic-release ([dd57d41](https://github.com/ppenter/mantou/commit/dd57d41d27896afdf11bc43cd46617e8d9300d60))
+
 # mantou 1.0.0-canary.1 (2025-01-18)
 
 
