@@ -53,8 +53,8 @@ jobs:
             
             # Extract and display npm versions
             echo "Checking published versions..."
-            echo "mantou version: $(npm view @ppenter/mantou@canary version)"
-            echo "create-mantou-app version: $(npm view @ppenter/create-mantou-app@canary version)"
+            echo "mantou version: $(npm view mantou@canary version)"
+            echo "create-mantou-app version: $(npm view create-mantou-app@canary version)"
           else
             npx multi-semantic-release
           fi
