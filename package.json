@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "release": "multi-semantic-release"
   },
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@types/bun": "latest",
@@ -36,5 +38,6 @@
     "eslint": "^9.17.0",
     "react-dom": "^19.0.0",
     "react-router": "^7.1.1"
-  }
+  },
+  "version": "1.0.0-canary.1"
 }
