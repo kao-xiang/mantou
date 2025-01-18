@@ -23,6 +23,7 @@
     "@semantic-release/github": "^11.0.1",
     "@semantic-release/npm": "^12.0.1",
     "@semantic-release/release-notes-generator": "^14.0.3",
+    "multi-semantic-release": "^3.0.2",
     "@types/bun": "latest",
     "globals": "^15.14.0",
     "rimraf": "^5.0.5",
