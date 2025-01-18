@@ -44,4 +44,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_OPTIONS: "--no-warnings"
-        run: npx multi-semantic-release
+        run: |
+          if [[ $GITHUB_REF == "refs/heads/develop" ]]; then
+            echo "Publishing canary version..."
+            VERSION_OUTPUT=$(npx multi-semantic-release)
+            echo "Version output:"
+            echo "$VERSION_OUTPUT"
+            
+            # Extract and display npm versions
+            echo "Checking published versions..."
+            echo "mantou version: $(npm view @ppenter/mantou@canary version)"
+            echo "create-mantou-app version: $(npm view @ppenter/create-mantou-app@canary version)"
+          else
+            npx multi-semantic-release
+          fi
