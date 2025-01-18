@@ -7,7 +7,7 @@
     "tag": "latest"
   },
   "release": {
-    "extends": "../../release.config.js"
+    "extends": "../../release.config.cjs"
   },
   "bin": {
     "create-mantou-app": "./dist/index.js"

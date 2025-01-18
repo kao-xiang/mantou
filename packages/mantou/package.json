@@ -6,7 +6,7 @@
     "tag": "latest"
   },
   "release": {
-    "extends": "../../release.config.js"
+    "extends": "../../release.config.cjs"
   },
   "repository": {
     "type": "git",
