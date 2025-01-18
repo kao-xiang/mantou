@@ -48,46 +48,53 @@ jobs:
           echo "$COMMITS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Determine version
-        id: version
-        run: |
-          BRANCH=${GITHUB_REF#refs/heads/}
-          
-          # Get the latest version from npm for all packages
-          LATEST_VERSIONS=()
-          for pkg in packages/*; do
-            if [ -f "$pkg/package.json" ]; then
-              PKG_NAME=$(node -p "require('./$pkg/package.json').name")
-              LATEST_VERSION=$(npm view $PKG_NAME version 2>/dev/null || echo "0.0.0")
-              LATEST_VERSIONS+=($LATEST_VERSION)
-            fi
-          done
-          
-          # Find the highest version
-          LATEST_VERSION=$(printf '%s\n' "${LATEST_VERSIONS[@]}" | sort -V | tail -n1)
-          
-          if [ "$BRANCH" = "develop" ]; then
-            # For develop branch: increment canary version
-            CANARY_COUNT=$(npm view $PKG_NAME versions --json 2>/dev/null | grep -c "$LATEST_VERSION-canary")
-            CANARY_COUNT=$((CANARY_COUNT + 1))  # Always increment by 1
-            NEW_VERSION="${LATEST_VERSION}-canary.${CANARY_COUNT}"
-          else
-            # For master branch: semantic versioning based on commit messages
-            COMMITS="${{ steps.get_commits.outputs.commits }}"
+          - name: Determine version
+          id: version
+          run: |
+            BRANCH=${GITHUB_REF#refs/heads/}
             
-            if echo "$COMMITS" | grep -q "^feat!:\|^BREAKING CHANGE"; then
-              # Major version for breaking changes
-              NEW_VERSION=$(echo $LATEST_VERSION | awk -F. '{$1++; $2=0; $3=0; print $1"."$2"."$3}' OFS=.)
-            elif echo "$COMMITS" | grep -q "^feat:"; then
-              # Minor version for features
-              NEW_VERSION=$(echo $LATEST_VERSION | awk -F. '{$2++; $3=0; print $1"."$2"."$3}' OFS=.)
+            # Get the latest version from npm for all packages
+            LATEST_VERSIONS=()
+            for pkg in packages/*; do
+              if [ -f "$pkg/package.json" ]; then
+                PKG_NAME=$(node -p "require('./$pkg/package.json').name")
+                LATEST_VERSION=$(npm view $PKG_NAME version 2>/dev/null || echo "0.0.0")
+                LATEST_VERSIONS+=($LATEST_VERSION)
+              fi
+            done
+            
+            # Find the highest version
+            LATEST_VERSION=$(printf '%s\n' "${LATEST_VERSIONS[@]}" | sort -V | tail -n1)
+            
+            if [ "$BRANCH" = "develop" ]; then
+              # For develop branch: get max canary version
+              VERSIONS_JSON=$(npm view $PKG_NAME versions --json 2>/dev/null || echo "[]")
+              CURRENT_CANARY_MAX=$(echo "$VERSIONS_JSON" | node -e "
+                const versions = JSON.parse(process.stdin.read());
+                const canaryVersions = versions
+                  .filter(v => v.startsWith('${LATEST_VERSION}-canary.'))
+                  .map(v => parseInt(v.split('.').pop()))
+                  .filter(n => !isNaN(n));
+                console.log(Math.max(...canaryVersions, 0));
+              ")
+              NEW_VERSION="${LATEST_VERSION}-canary.$((CURRENT_CANARY_MAX + 1))"
             else
-              # Patch version for fixes
-              NEW_VERSION=$(echo $LATEST_VERSION | awk -F. '{$3++; print $1"."$2"."$3}' OFS=.)
+              # For master branch: semantic versioning based on commit messages
+              COMMITS="${{ steps.get_commits.outputs.commits }}"
+              
+              if echo "$COMMITS" | grep -q "^feat!:\|^BREAKING CHANGE"; then
+                # Major version for breaking changes
+                NEW_VERSION=$(echo $LATEST_VERSION | awk -F. '{$1++; $2=0; $3=0; print $1"."$2"."$3}' OFS=.)
+              elif echo "$COMMITS" | grep -q "^feat:"; then
+                # Minor version for features
+                NEW_VERSION=$(echo $LATEST_VERSION | awk -F. '{$2++; $3=0; print $1"."$2"."$3}' OFS=.)
+              else
+                # Patch version for fixes
+                NEW_VERSION=$(echo $LATEST_VERSION | awk -F. '{$3++; print $1"."$2"."$3}' OFS=.)
+              fi
             fi
-          fi
-          
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            
+            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
       - name: Update package versions
         run: |
