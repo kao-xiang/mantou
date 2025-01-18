@@ -7,9 +7,6 @@
     "tag": "latest",
     "registry": "https://registry.npmjs.org/"
   },
-  "release": {
-    "extends": "../../release.config.cjs"
-  },
   "bin": {
     "create-mantou-app": "./dist/index.js"
   },

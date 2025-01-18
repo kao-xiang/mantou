@@ -1,13 +1,10 @@
 {
   "name": "mantou",
-  "version": "1.0.0-canary.2",
+  "version": "1.0.15",
   "publishConfig": {
     "access": "public",
     "tag": "latest",
     "registry": "https://registry.npmjs.org/"
-  },
-  "release": {
-    "extends": "../../release.config.cjs"
   },
   "repository": {
     "type": "git",

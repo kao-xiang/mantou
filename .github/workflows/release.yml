@@ -1,36 +1,127 @@
-name: Release
+name: Publish Packages
+
 on:
   push:
-    branches: 
-      - master
+    branches:
       - develop
+      - master
+    paths:
+      - 'packages/**'
 
 jobs:
-  release:
+  publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
-      
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+
       - name: Install dependencies
         run: bun install
-      
-      - name: Setup npm authentication
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
 
-      - name: Build
-        run: bun run build
+      - name: Get commit messages
+        id: get_commits
+        run: |
+          COMMITS=$(git log --format="%s" $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD)
+          echo "commits<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Determine version
+        id: version
+        run: |
+          BRANCH=${GITHUB_REF#refs/heads/}
           
-      - name: Release
+          # Get the latest version from npm for all packages
+          LATEST_VERSIONS=()
+          for pkg in packages/*; do
+            if [ -f "$pkg/package.json" ]; then
+              PKG_NAME=$(node -p "require('./$pkg/package.json').name")
+              LATEST_VERSION=$(npm view $PKG_NAME version 2>/dev/null || echo "0.0.0")
+              LATEST_VERSIONS+=($LATEST_VERSION)
+            fi
+          done
+          
+          # Find the highest version
+          LATEST_VERSION=$(printf '%s\n' "${LATEST_VERSIONS[@]}" | sort -V | tail -n1)
+          
+          if [ "$BRANCH" = "develop" ]; then
+            # For develop branch: increment canary version
+            CANARY_COUNT=$(npm view $PKG_NAME versions --json 2>/dev/null | grep -c "canary" || echo "0")
+            NEW_VERSION="${LATEST_VERSION}-canary.${CANARY_COUNT}"
+          else
+            # For master branch: semantic versioning based on commit messages
+            COMMITS="${{ steps.get_commits.outputs.commits }}"
+            
+            if echo "$COMMITS" | grep -q "^feat!:\|^BREAKING CHANGE"; then
+              # Major version for breaking changes
+              NEW_VERSION=$(echo $LATEST_VERSION | awk -F. '{$1++; $2=0; $3=0; print $1"."$2"."$3}' OFS=.)
+            elif echo "$COMMITS" | grep -q "^feat:"; then
+              # Minor version for features
+              NEW_VERSION=$(echo $LATEST_VERSION | awk -F. '{$2++; $3=0; print $1"."$2"."$3}' OFS=.)
+            else
+              # Patch version for fixes
+              NEW_VERSION=$(echo $LATEST_VERSION | awk -F. '{$3++; print $1"."$2"."$3}' OFS=.)
+            fi
+          fi
+          
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update package versions
+        run: |
+          NEW_VERSION=${{ steps.version.outputs.new_version }}
+          for pkg in packages/*; do
+            if [ -f "$pkg/package.json" ]; then
+              sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" $pkg/package.json
+            fi
+          done
+
+      - name: Build packages
+        run: |
+          for pkg in packages/*; do
+            if [ -f "$pkg/package.json" ]; then
+              cd $pkg
+              bun run build
+              cd ../..
+            fi
+          done
+
+      - name: Publish to NPM
+        run: |
+          for pkg in packages/*; do
+            if [ -f "$pkg/package.json" ]; then
+              cd $pkg
+              if [ "$GITHUB_REF" = "refs/heads/develop" ]; then
+                npm publish --tag canary
+              else
+                npm publish
+              fi
+              cd ../..
+            fi
+          done
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_ACCESS: public
-        run: bun run release
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create Release
+        if: github.ref == 'refs/heads/master'
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ steps.version.outputs.new_version }}
+          name: Release v${{ steps.version.outputs.new_version }}
+          generateReleaseNotes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
