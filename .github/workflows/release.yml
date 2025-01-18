@@ -1,15 +1,13 @@
-name: Publish on PR Merge
+name: Publish Packages
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
       - develop
       - master
 
 jobs:
   publish:
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'version-update/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -31,7 +29,7 @@ jobs:
           node-version: '20.x'
           registry-url: 'https://registry.npmjs.org/'
 
-      - name: "Create .npmrc for NPM and GitHub Packages"
+      - name: "Create .npmrc"
         run: |
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
           echo "//npm.pkg.github.com/:_authToken=${GH_TOKEN}" >> .npmrc
@@ -41,6 +39,71 @@ jobs:
 
       - name: Install dependencies
         run: bun install
+
+      - name: Get commit messages
+        id: get_commits
+        run: |
+          COMMITS=$(git log --format="%s" $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD)
+          echo "commits<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Determine version
+        id: version
+        run: |
+          BRANCH=${GITHUB_REF#refs/heads/}
+          
+          # Get the latest version from npm for all packages
+          LATEST_VERSIONS=()
+          for pkg in packages/*; do
+            if [ -f "$pkg/package.json" ]; then
+              PKG_NAME=$(node -p "require('./$pkg/package.json').name")
+              LATEST_VERSION=$(npm view $PKG_NAME version 2>/dev/null || echo "0.0.0")
+              LATEST_VERSIONS+=($LATEST_VERSION)
+            fi
+          done
+          
+          # Find the highest version
+          LATEST_VERSION=$(printf '%s\n' "${LATEST_VERSIONS[@]}" | sort -V | tail -n1)
+          
+          if [ "$BRANCH" = "develop" ]; then
+            # For develop branch: get max canary version
+              VERSIONS_JSON=$(npm view $PKG_NAME versions --json 2>/dev/null || echo "[]")
+              CURRENT_CANARY_MAX=$(echo "$VERSIONS_JSON" | node -e "
+                const versions = JSON.parse(process.argv[1]);
+                const canaryVersions = versions
+                  .filter(v => v.startsWith('${LATEST_VERSION}-canary.'))
+                  .map(v => parseInt(v.split('.').pop()))
+                  .filter(n => !isNaN(n));
+                console.log(Math.max(...canaryVersions, 0));
+              " "$VERSIONS_JSON")
+              NEW_VERSION="${LATEST_VERSION}-canary.$((CURRENT_CANARY_MAX + 1))"
+          else
+            # For master branch: semantic versioning based on commit messages
+            COMMITS="${{ steps.get_commits.outputs.commits }}"
+            
+            if echo "$COMMITS" | grep -q "^feat!:\|^BREAKING CHANGE"; then
+              # Major version for breaking changes
+              NEW_VERSION=$(echo $LATEST_VERSION | awk -F. '{$1++; $2=0; $3=0; print $1"."$2"."$3}' OFS=.)
+            elif echo "$COMMITS" | grep -q "^feat:"; then
+              # Minor version for features
+              NEW_VERSION=$(echo $LATEST_VERSION | awk -F. '{$2++; $3=0; print $1"."$2"."$3}' OFS=.)
+            else
+              # Patch version for fixes
+              NEW_VERSION=$(echo $LATEST_VERSION | awk -F. '{$3++; print $1"."$2"."$3}' OFS=.)
+            fi
+          fi
+          
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update package versions
+        run: |
+          NEW_VERSION=${{ steps.version.outputs.new_version }}
+          for pkg in packages/*; do
+            if [ -f "$pkg/package.json" ]; then
+              sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" $pkg/package.json
+            fi
+          done
 
       - name: Build packages
         run: |
@@ -54,11 +117,10 @@ jobs:
 
       - name: Publish to NPM
         run: |
-          BRANCH=${{ github.base_ref }}
           for pkg in packages/*; do
             if [ -f "$pkg/package.json" ]; then
               cd $pkg
-              if [ "$BRANCH" = "develop" ]; then
+              if [ "$GITHUB_REF" = "refs/heads/develop" ]; then
                 npm publish --tag canary
               else
                 npm publish
@@ -68,10 +130,10 @@ jobs:
           done
 
       - name: Create Release
-        if: github.base_ref == 'master'
+        if: github.ref == 'refs/heads/master'
         uses: ncipollo/release-action@v1
         with:
-          tag: v${{ fromJson(github.event.pull_request.title).version }}
-          name: ${{ github.event.pull_request.title }}
+          tag: v${{ steps.version.outputs.new_version }}
+          name: Release v${{ steps.version.outputs.new_version }}
           generateReleaseNotes: true
           token: ${{ secrets.GH_TOKEN }}
