@@ -1,12 +1,10 @@
 {
   "name": "mantou",
-  "version": "0.0.0-semantically-released",
+  "version": "1.0.14",
   "publishConfig": {
     "access": "public",
-    "tag": "latest"
-  },
-  "release": {
-    "extends": "../../release.config.cjs"
+    "tag": "latest",
+    "registry": "https://registry.npmjs.org/"
   },
   "repository": {
     "type": "git",
