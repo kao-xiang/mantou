@@ -117,8 +117,6 @@ jobs:
               cd ../..
             fi
           done
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create Release
         if: github.ref == 'refs/heads/master'
