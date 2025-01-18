@@ -11,8 +11,7 @@
     "build": "bun run build:mantou && bun run build:create-mantou-app",
     "test": "bun test",
     "lint": "eslint .",
-    "release": "bun scripts/release.js",
-    "sematic-release": "semantic-release"
+    "release": "multi-semantic-release"
   },
   "workspaces": ["packages/*"],
   "devDependencies": {
