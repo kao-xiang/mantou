@@ -62,4 +62,4 @@ const developConfig = {
   ]
 };
 
-module.exports = process.env.GITHUB_REF === 'refs/heads/develop' ? developConfig : masterConfig; 
+module.exports = process.env.GITHUB_REF === 'refs/heads/develop' ? developConfig : masterConfig;
