@@ -199,7 +199,7 @@ runs:
 
         # Remove the compare link from the version header
         sed -i "s/^## \[.*\]/## ${{ steps.version.outputs.new_version }}/" CHANGELOG.md
-      fi
+      fi 
 
       git add CHANGELOG.md
       git commit -m "chore: update changelog [skip ci]"
