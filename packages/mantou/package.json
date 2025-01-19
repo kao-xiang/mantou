@@ -1,6 +1,6 @@
 {
   "name": "mantou",
-  "version": "1.0.16-canary.4",
+  "version": "1.0.17-canary.1",
   "publishConfig": {
     "access": "public",
     "tag": "latest",
@@ -38,7 +38,7 @@
     "@types/react-dom": "^19.0.2"
   },
   "bin": {
-    "mantou": "1.0.16-canary.4"
+    "mantou": "1.0.17-canary.1"
   },
   "files": [
     "dist",
