@@ -49,7 +49,7 @@ runs:
       increment_version() {
         local version=$1
         local bump_type=$2
-        
+
         if [ "$bump_type" = "major" ]; then
           echo "$version" | awk -F. '{$1++; $2=0; $3=0; print $1"."$2"."$3}' OFS=.
         elif [ "$bump_type" = "minor" ]; then
@@ -65,27 +65,23 @@ runs:
       if [[ "$BRANCH" == "develop" ]]; then
         # Get base version without canary
         BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
-        
+
         if [ "$IS_RELEASE" = "true" ]; then
           # For release commits, remove canary suffix
           NEW_VERSION="$BASE_VERSION"
           NPM_TAG="latest"
         else
-          # For regular commits, handle version bump and canary
+          # For regular commits on develop, always update canary version
           BUMP_TYPE="${{ steps.commits.outputs.bump }}"
-          NEW_BASE_VERSION=$(increment_version "$BASE_VERSION" "$BUMP_TYPE")
-          
-          # Reset or increment canary number
-          if [ "$NEW_BASE_VERSION" != "$BASE_VERSION" ]; then
-            NEW_VERSION="${NEW_BASE_VERSION}-canary.1"
-          else
-            CANARY_NUM=$(echo "$CURRENT_VERSION" | sed 's/.*-canary\.//')
-            NEW_CANARY=$((CANARY_NUM + 1))
-            NEW_VERSION="${BASE_VERSION}-canary.${NEW_CANARY}"
-          fi
+          NEW_BASE_VERSION="$BASE_VERSION" # Keep the base version unchanged
+
+          # Increment canary number
+          CANARY_NUM=$(echo "$CURRENT_VERSION" | sed 's/.*-canary\.//')
+          NEW_CANARY=$((CANARY_NUM + 1))
+          NEW_VERSION="${BASE_VERSION}-canary.${NEW_CANARY}"
           NPM_TAG="canary"
         fi
-        
+
       elif [[ "$BRANCH" =~ ^version-[0-9]+ ]]; then
         # For version branches, increment patch or minor based on conventional commits
         BUMP_TYPE="${{ steps.commits.outputs.bump }}"
