@@ -1,118 +1,309 @@
 name: 'Version and Publish'
-description: 'Handle versioning and publishing with conventional commits'
+description: 'Handles versioning and publishing using conventional commits with support for canary releases'
+
+branding:
+  icon: 'tag'
+  color: 'blue'
 
 inputs:
   npm-token:
-    description: 'NPM token for publishing'
+    description: 'NPM token for publishing packages'
     required: true
   github-token:
-    description: 'GitHub token for creating releases'
+    description: 'GitHub token for creating releases and branches'
     required: true
   dry-run:
-    description: 'Run in dry-run mode'
+    description: 'Run in dry-run mode without making any changes'
     required: false
     default: 'false'
+
+outputs:
+  new_version:
+    description: 'The new version number generated'
+    value: ''
+  npm_tag:
+    description: 'The NPM tag used for publishing'
+    value: ''
+  bump_type:
+    description: 'Type of version bump performed (major/minor/patch)'
+    value: ''
 
 runs:
   using: 'composite'
   steps:
+  - name: Setup Git Config
+    shell: bash
+    run: |
+      set -euo pipefail
+
+      # Configure Git
+      git config user.name "GitHub Action"
+      git config user.email "action@github.com"
+
+      # Ensure clean state
+      if [ -n "$(git status --porcelain)" ]; then
+        echo "Error: Working directory is not clean" >&2
+        exit 1
+      fi
+
   - name: Get Commit Info
     id: commits
     if: github.ref_name == 'develop'
     shell: bash
     run: |
-      # Get commits since last tag
-      COMMITS=$(git log --format="%s" $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD)
+      set -euo pipefail
 
-      # Check commit types
+      # Fetch all history and tags
+      git fetch --prune --unshallow || git fetch --prune
+
+      # Get last tag or initial commit
+      LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)
+
+      # Get commits since last tag
+      COMMITS=$(git log --format="%s" "${LAST_TAG}..HEAD")
+
+      # Determine bump type
+      BUMP_TYPE="patch"
       if echo "$COMMITS" | grep -q "^feat!:\|^BREAKING CHANGE"; then
-        echo "bump=major" >> $GITHUB_OUTPUT
+        BUMP_TYPE="major"
       elif echo "$COMMITS" | grep -q "^feat:"; then
-        echo "bump=minor" >> $GITHUB_OUTPUT
-      else
-        echo "bump=patch" >> $GITHUB_OUTPUT
+        BUMP_TYPE="minor"
       fi
 
+      {
+        echo "bump=${BUMP_TYPE}"
+        echo "last_tag=${LAST_TAG}"
+      } >> "$GITHUB_OUTPUT"
+
       if [ "${{ inputs.dry-run }}" = "true" ]; then
-        echo "Analyzing commits since last tag:"
-        echo "$COMMITS"
-        echo "Determined version bump: $(cat $GITHUB_OUTPUT | grep bump | cut -d= -f2)"
+        {
+          echo "Analyzing commits since ${LAST_TAG}:"
+          echo "$COMMITS"
+          echo "Determined version bump: ${BUMP_TYPE}"
+        } >&2
       fi
 
   - name: Process Version
     id: version
     shell: bash
     run: |
+      set -euo pipefail
+
+      # Utility functions
+      increment_version() {
+        local version=$1
+        local bump_type=$2
+        local parts
+        IFS='.' read -ra parts <<< "$version"
+        
+        case "$bump_type" in
+          major)
+            echo "$((parts[0] + 1)).0.0"
+            ;;
+          minor)
+            echo "${parts[0]}.$((parts[1] + 1)).0"
+            ;;
+          patch)
+            echo "${parts[0]}.${parts[1]}.$((parts[2] + 1))"
+            ;;
+          *)
+            echo "Error: Invalid bump type '${bump_type}'" >&2
+            exit 1
+            ;;
+        esac
+      }
+
+      validate_version() {
+        local version=$1
+        if ! echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-canary\.[0-9]+)?$'; then
+          echo "Error: Invalid version format '${version}'" >&2
+          exit 1
+        fi
+      }
+
+      # Determine branch and current version
       BRANCH="${{ github.event_name == 'pull_request' && 'master' || github.ref_name }}"
       CURRENT_VERSION=$(node -p "require('./package.json').version")
+      validate_version "$CURRENT_VERSION"
 
-      if [ "$BRANCH" = "master" ]; then
-        # For master: just remove canary suffix
-        NEW_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
-        NPM_TAG="latest"
-        
-      elif [ "$BRANCH" = "develop" ]; then
-        # Get base version without canary
-        BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
-        
-        # Apply version bump based on conventional commits
-        BUMP_TYPE="${{ steps.commits.outputs.bump }}"
-        
-        if [ "$BUMP_TYPE" = "major" ]; then
-          NEW_BASE=$(echo "$BASE_VERSION" | awk -F. '{$1++; $2=0; $3=0; print $1"."$2"."$3}' OFS=.)
-        elif [ "$BUMP_TYPE" = "minor" ]; then
-          NEW_BASE=$(echo "$BASE_VERSION" | awk -F. '{$2++; $3=0; print $1"."$2"."$3}' OFS=.)
-        else
-          NEW_BASE=$(echo "$BASE_VERSION" | awk -F. '{$3++; print $1"."$2"."$3}' OFS=.)
-        fi
-        
-        # Add canary suffix
-        if [[ "$CURRENT_VERSION" == *"-canary"* ]]; then
-          CANARY_NUM=$(echo "$CURRENT_VERSION" | sed 's/.*-canary\.//')
-          NEW_CANARY=$((CANARY_NUM + 1))
-        else
-          NEW_CANARY=1
-        fi
-        
-        NEW_VERSION="${NEW_BASE}-canary.${NEW_CANARY}"
-        NPM_TAG="canary"
-        
-      elif [[ "$BRANCH" =~ ^v[0-9]+ ]]; then
-        # For version branches: increment patch
-        NEW_VERSION=$(echo "$CURRENT_VERSION" | awk -F. '{$NF++; print $0}' OFS=.)
-        NPM_TAG="${BRANCH}-latest"
-      fi
+      # Process version based on branch
+      case "$BRANCH" in
+        master)
+          # Remove canary suffix for master
+          NEW_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
+          NPM_TAG="latest"
+          echo "master_version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          ;;
+          
+        develop)
+          # Get base version without canary
+          BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
+          
+          if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
+            # After PR merge to master
+            MASTER_VERSION="${{ steps.version.outputs.master_version }}"
+            if [ -n "$MASTER_VERSION" ]; then
+              BASE_VERSION=$(increment_version "$MASTER_VERSION" "minor")
+            fi
+          else
+            # Normal develop version bump
+            BUMP_TYPE="${{ steps.commits.outputs.bump }}"
+            BASE_VERSION=$(increment_version "$BASE_VERSION" "$BUMP_TYPE")
+          fi
+          
+          # Add canary suffix
+          CANARY_NUM=1
+          if [[ "$CURRENT_VERSION" =~ -canary\.([0-9]+)$ ]]; then
+            CANARY_NUM=$((BASH_REMATCH[1] + 1))
+          fi
+          
+          NEW_VERSION="${BASE_VERSION}-canary.${CANARY_NUM}"
+          NPM_TAG="canary"
+          ;;
+          
+        v[0-9]*)
+          # Version branches: increment patch
+          NEW_VERSION=$(increment_version "$CURRENT_VERSION" "patch")
+          NPM_TAG="${BRANCH}-latest"
+          ;;
+          
+        *)
+          echo "Error: Unsupported branch '${BRANCH}'" >&2
+          exit 1
+          ;;
+      esac
+
+      validate_version "$NEW_VERSION"
 
       if [ "${{ inputs.dry-run }}" = "true" ]; then
-        echo "Current version: $CURRENT_VERSION"
-        echo "New version: $NEW_VERSION"
-        echo "NPM tag: $NPM_TAG"
+        {
+          echo "Current version: ${CURRENT_VERSION}"
+          echo "New version: ${NEW_VERSION}"
+          echo "NPM tag: ${NPM_TAG}"
+        } >&2
       fi
 
-      echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-      echo "npm_tag=$NPM_TAG" >> $GITHUB_OUTPUT
+      {
+        echo "new_version=${NEW_VERSION}"
+        echo "npm_tag=${NPM_TAG}"
+      } >> "$GITHUB_OUTPUT"
+
+  - name: Update Package Versions
+    if: inputs.dry-run != 'true'
+    shell: bash
+    run: |
+      set -euo pipefail
+
+      NEW_VERSION="${{ steps.version.outputs.new_version }}"
+      validate_version "$NEW_VERSION"
+
+      update_package_json() {
+        local file=$1
+        if [ ! -f "$file" ]; then
+          echo "Error: Package file not found: ${file}" >&2
+          exit 1
+        fi
+        
+        # Update version safely with temporary file
+        local temp_file
+        temp_file=$(mktemp)
+        jq ".version = \"${NEW_VERSION}\"" "$file" > "$temp_file"
+        mv "$temp_file" "$file"
+      }
+
+      # Update root package.json
+      if [ -f "package.json" ]; then
+        update_package_json "package.json"
+      fi
+
+      # Update all package versions
+      find packages -name 'package.json' -type f | while read -r pkg_file; do
+        update_package_json "$pkg_file"
+        
+        # Update internal dependencies
+        PKG_NAME=$(jq -r '.name' "$pkg_file")
+        find packages -name 'package.json' -type f | while read -r dep_file; do
+          local temp_file
+          temp_file=$(mktemp)
+          jq "if .dependencies[\"${PKG_NAME}\"] then .dependencies[\"${PKG_NAME}\"] = \"${NEW_VERSION}\" else . end" \
+            "$dep_file" > "$temp_file"
+          mv "$temp_file" "$dep_file"
+        done
+      done
+
+  - name: Git Operations
+    if: inputs.dry-run != 'true'
+    shell: bash
+    run: |
+      set -euo pipefail
+
+      NEW_VERSION="${{ steps.version.outputs.new_version }}"
+
+      # Ensure changes are tracked
+      if [ -z "$(git status --porcelain)" ]; then
+        echo "No changes to commit"
+        exit 0
+      fi
+
+      # Commit version updates
+      git add package.json packages/*/package.json
+      git commit -m "chore: update version to ${NEW_VERSION} [skip ci]"
+
+      # Push changes with retry
+      max_attempts=3
+      attempt=1
+      while [ $attempt -le $max_attempts ]; do
+        if git push origin "${{ github.ref_name }}"; then
+          break
+        fi
+        
+        if [ $attempt -eq $max_attempts ]; then
+          echo "Error: Failed to push changes after ${max_attempts} attempts" >&2
+          exit 1
+        fi
+        
+        attempt=$((attempt + 1))
+        git pull --rebase
+      done
+
+      # Create and push tags
+      if [ "${{ github.event_name }}" = "pull_request" ] || [[ "${{ github.ref_name }}" =~ ^v[0-9]+ ]]; then
+        git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
+        git push origin "v${NEW_VERSION}"
+        
+        # Update additional tags based on branch
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          git tag -af "stable" -m "Latest stable release v${NEW_VERSION}"
+          git push -f origin stable
+        elif [[ "${{ github.ref_name }}" =~ ^v[0-9]+ ]]; then
+          git tag -af "${{ github.ref_name }}-latest" -m "Latest ${{ github.ref_name }} release v${NEW_VERSION}"
+          git push -f origin "${{ github.ref_name }}-latest"
+        fi
+      fi
 
   - name: Create Previous Version Branch
     if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && inputs.dry-run != 'true'
     shell: bash
     run: |
-      CURRENT_VERSION=${{ steps.version.outputs.new_version }}
-      MAJOR_VERSION=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+      set -euo pipefail
+
+      NEW_VERSION="${{ steps.version.outputs.new_version }}"
+      MAJOR_VERSION=${NEW_VERSION%%.*}
       PREV_MAJOR=$((MAJOR_VERSION - 1))
       BRANCH_NAME="v${PREV_MAJOR}"
 
-      # Check if this is a major version bump
-      if ! git branch -r | grep -q "origin/$BRANCH_NAME"; then
-        echo "Creating maintenance branch $BRANCH_NAME"
+      # Check if branch already exists
+      if ! git ls-remote --heads origin "refs/heads/${BRANCH_NAME}" | grep -q .; then
+        echo "Creating maintenance branch ${BRANCH_NAME}"
         
-        # Create and push branch
-        git branch $BRANCH_NAME
-        git push origin $BRANCH_NAME
+        git branch "$BRANCH_NAME"
+        git push origin "$BRANCH_NAME"
         
         # Create branch protection
         curl -X PUT \
           -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization: token ${{ inputs.github-token }}" \
+          -H "Authorization: Bearer ${{ inputs.github-token }}" \
+          -H "Content-Type: application/json" \
           "https://api.github.com/repos/${{ github.repository }}/branches/${BRANCH_NAME}/protection" \
           -d '{
             "required_status_checks": null,
@@ -121,96 +312,102 @@ runs:
               "required_approving_review_count": 1
             },
             "restrictions": null
-          }'
+          }' || echo "Warning: Failed to set branch protection" >&2
       fi
 
-  - name: Update Package Versions
-    if: inputs.dry-run != 'true'
+  - name: Update Develop After Master PR
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && inputs.dry-run != 'true'
     shell: bash
     run: |
-      NEW_VERSION=${{ steps.version.outputs.new_version }}
+      set -euo pipefail
 
-      # Update root package.json
-      if [ -f "package.json" ]; then
-        sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" package.json
-      fi
+      # Fetch and checkout develop
+      git fetch origin develop
+      git checkout develop
 
-      # Update all package versions in packages directory
-      for pkg in packages/*; do
-        if [ -f "$pkg/package.json" ]; then
-          sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" $pkg/package.json
-          
-          # Update internal dependencies versions
-          PKG_NAME=$(node -p "require('./$pkg/package.json').name")
-          for dep_pkg in packages/*; do
-            if [ -f "$dep_pkg/package.json" ]; then
-              sed -i "s/\"$PKG_NAME\": \".*\"/\"$PKG_NAME\": \"$NEW_VERSION\"/" $dep_pkg/package.json
-            fi
-          done
+      # Calculate new version
+      MASTER_VERSION="${{ steps.version.outputs.new_version }}"
+      NEW_BASE_VERSION=$(echo "$MASTER_VERSION" | awk -F. '{$2++; $3=0; print $1"."$2"."$3}' OFS=.)
+      NEW_VERSION="${NEW_BASE_VERSION}-canary.1"
+
+      # Update package versions using jq
+      update_version() {
+        local file=$1
+        if [ -f "$file" ]; then
+          local temp_file
+          temp_file=$(mktemp)
+          jq ".version = \"${NEW_VERSION}\"" "$file" > "$temp_file"
+          mv "$temp_file" "$file"
         fi
-      done
+      }
 
-  - name: Show Changes
-    if: inputs.dry-run == 'true'
-    shell: bash
-    run: |
-      NPM_TAG=${{ steps.version.outputs.npm_tag }}
-      NEW_VERSION=${{ steps.version.outputs.new_version }}
+      update_version "package.json"
+      find packages -name 'package.json' -type f -exec bash -c 'update_version "$0"' {} \;
 
-      echo "[DRY RUN] Would publish packages with tag: $NPM_TAG"
-      for pkg in packages/*; do
-        if [ -f "$pkg/package.json" ]; then
-          PKG_NAME=$(node -p "require('./$pkg/package.json').name")
-          echo "| - Would publish $PKG_NAME@$NEW_VERSION"
-        fi
-      done
-
-  - name: Git Operations
-    if: inputs.dry-run != 'true'
-    shell: bash
-    run: |
-      NEW_VERSION=${{ steps.version.outputs.new_version }}
-
-      # Commit version updates
+      # Commit and push changes with retry
       git add package.json packages/*/package.json
-      git commit -m "chore: update version to ${NEW_VERSION} [skip ci]"
-      git push origin ${{ github.ref_name }}
+      git commit -m "chore: bump version to ${NEW_VERSION} after master release [skip ci]"
 
-      # Create version tag
-      if [ "${{ github.event_name }}" = "pull_request" ] || [[ "${{ github.ref_name }}" =~ ^v[0-9]+ ]]; then
-        git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
-        git push origin "v${NEW_VERSION}"
-        
-        # For master branch, also update stable tag
-        if [ "${{ github.event_name }}" = "pull_request" ]; then
-          git tag -a "stable" -m "Latest stable release v${NEW_VERSION}" -f
-          git push origin stable -f
+      max_attempts=3
+      attempt=1
+      while [ $attempt -le $max_attempts ]; do
+        if git push origin develop; then
+          break
         fi
         
-        # For version branches, update their latest tags
-        if [[ "${{ github.ref_name }}" =~ ^v[0-9]+ ]]; then
-          git tag -a "${{ github.ref_name }}-latest" -m "Latest ${{ github.ref_name }} release v${NEW_VERSION}" -f
-          git push origin "${{ github.ref_name }}-latest" -f
+        if [ $attempt -eq $max_attempts ]; then
+          echo "Error: Failed to push changes after ${max_attempts} attempts" >&2
+          exit 1
         fi
-      fi
+        
+        attempt=$((attempt + 1))
+        git pull --rebase
+      done
 
   - name: Publish to NPM
     if: inputs.dry-run != 'true'
     shell: bash
     run: |
-      NPM_TAG=${{ steps.version.outputs.npm_tag }}
+      set -euo pipefail
 
-      # Create NPM config
-      echo "//registry.npmjs.org/:_authToken=${{ inputs.npm-token }}" > .npmrc
+      NPM_TAG="${{ steps.version.outputs.npm_tag }}"
 
-      # Publish packages
-      for pkg in packages/*; do
-        if [ -f "$pkg/package.json" ]; then
-          cd $pkg
-          npm publish --tag $NPM_TAG --access public
-          cd ../..
-        fi
-      done
+      # Create NPM config securely
+      {
+        echo "//registry.npmjs.org/:_authToken=${{ inputs.npm-token }}"
+        echo "access=public"
+      } > .npmrc
+
+      chmod 600 .npmrc
+
+      # Publish packages with retry logic
+      publish_package() {
+        local pkg_dir=$1
+        local max_attempts=3
+        local attempt=1
+        
+        cd "$pkg_dir"
+        while [ $attempt -le $max_attempts ]; do
+          if npm publish --tag "$NPM_TAG" --access public; then
+            cd - > /dev/null
+            return 0
+          fi
+          
+          if [ $attempt -eq $max_attempts ]; then
+            echo "Error: Failed to publish ${pkg_dir} after ${max_attempts} attempts" >&2
+            cd - > /dev/null
+            return 1
+          fi
+          
+          attempt=$((attempt + 1))
+          sleep 5
+        done
+      }
+
+      find packages -name 'package.json' -type f -execdir bash -c 'publish_package "$PWD"' \;
+
+      # Cleanup
+      rm -f .npmrc
 
   - name: Create GitHub Release
     if: (github.event_name == 'pull_request' || github.ref_name != 'develop') && inputs.dry-run != 'true'
@@ -221,3 +418,27 @@ runs:
       name: Release v${{ steps.version.outputs.new_version }}
       generateReleaseNotes: true
       makeLatest: ${{ github.event_name == 'pull_request' }}
+      draft: false
+      prerelease: ${{ contains(steps.version.outputs.new_version, '-canary') }}
+
+  - name: Cleanup
+    if: always()
+    shell: bash
+    run: |
+      set -euo pipefail
+
+      # Clean up any sensitive files
+      rm -f .npmrc
+
+      # Reset Git config if needed
+      git config --unset user.name || true
+      git config --unset user.email || true
+
+      # Report final status
+      if [ "${{ inputs.dry-run }}" = "true" ]; then
+        echo "Dry run completed successfully"
+      else
+        echo "Release process completed successfully"
+        echo "Version: ${{ steps.version.outputs.new_version }}"
+        echo "NPM Tag: ${{ steps.version.outputs.npm_tag }}"
+      fi
