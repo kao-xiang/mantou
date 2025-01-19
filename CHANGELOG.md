@@ -1,3 +1,7 @@
+## [1.0.22](https://github.com/kao-xiang/mantou/compare/v1.0.22-canary.5...v1.0.22) (2025-01-19)
+
+
+
 ## [1.0.22-canary.5](https://github.com/kao-xiang/mantou/compare/v1.0.22-canary.4...v1.0.22-canary.5) (2025-01-19)
 
 
