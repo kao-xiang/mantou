@@ -18,13 +18,19 @@ runs:
   steps:
   - name: Get Commit Info
     id: commits
-    if: github.ref_name == 'develop'
     shell: bash
     run: |
       # Get commits since last tag
       COMMITS=$(git log --format="%s" $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD)
 
-      # Check commit types
+      # Check if this is a release commit
+      if echo "$COMMITS" | grep -q "^release:"; then
+        echo "is_release=true" >> $GITHUB_OUTPUT
+      else
+        echo "is_release=false" >> $GITHUB_OUTPUT
+      fi
+
+      # Check commit types for version bump
       if echo "$COMMITS" | grep -q "^feat!:\|^BREAKING CHANGE"; then
         echo "bump=major" >> $GITHUB_OUTPUT
       elif echo "$COMMITS" | grep -q "^feat:"; then
@@ -33,17 +39,10 @@ runs:
         echo "bump=patch" >> $GITHUB_OUTPUT
       fi
 
-      if [ "${{ inputs.dry-run }}" = "true" ]; then
-        echo "Analyzing commits since last tag:"
-        echo "$COMMITS"
-        echo "Determined version bump: $(cat $GITHUB_OUTPUT | grep bump | cut -d= -f2)"
-      fi
-
   - name: Process Version
     id: version
     shell: bash
     run: |
-      BRANCH="${{ github.event_name == 'pull_request' && 'master' || github.ref_name }}"
       CURRENT_VERSION=$(node -p "require('./package.json').version")
 
       # Function to increment version
@@ -60,103 +59,79 @@ runs:
         fi
       }
 
-      if [ "$BRANCH" = "master" ]; then
-        # For master: remove canary suffix
-        NEW_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
-        NPM_TAG="latest"
-        
-        # Store the new master version for develop branch calculation
-        echo "master_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-        
-      elif [ "$BRANCH" = "develop" ]; then
+      BRANCH="${{ github.ref_name }}"
+      IS_RELEASE="${{ steps.commits.outputs.is_release }}"
+
+      if [[ "$BRANCH" == "develop" ]]; then
         # Get base version without canary
         BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
         
-        if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
-          # If this is after a PR merge to master, increment the minor version
-          MASTER_VERSION="${{ steps.version.outputs.master_version }}"
-          if [ -n "$MASTER_VERSION" ]; then
-            BASE_VERSION=$(increment_version "$MASTER_VERSION" "minor")
-          fi
+        if [ "$IS_RELEASE" = "true" ]; then
+          # For release commits, remove canary suffix
+          NEW_VERSION="$BASE_VERSION"
+          NPM_TAG="latest"
         else
-          # For develop branch, only bump version if it's a major/minor change
-          # For fixes, just increment the canary number
+          # For regular commits, handle version bump and canary
           BUMP_TYPE="${{ steps.commits.outputs.bump }}"
-          if [ "$BUMP_TYPE" = "major" ] || [ "$BUMP_TYPE" = "minor" ]; then
-            BASE_VERSION=$(increment_version "$BASE_VERSION" "$BUMP_TYPE")
+          NEW_BASE_VERSION=$(increment_version "$BASE_VERSION" "$BUMP_TYPE")
+          
+          # Reset or increment canary number
+          if [ "$NEW_BASE_VERSION" != "$BASE_VERSION" ]; then
+            NEW_VERSION="${NEW_BASE_VERSION}-canary.1"
+          else
+            CANARY_NUM=$(echo "$CURRENT_VERSION" | sed 's/.*-canary\.//')
+            NEW_CANARY=$((CANARY_NUM + 1))
+            NEW_VERSION="${BASE_VERSION}-canary.${NEW_CANARY}"
           fi
+          NPM_TAG="canary"
         fi
         
-        # Add canary suffix
-        if [[ "$CURRENT_VERSION" == *"-canary"* ]]; then
-          CANARY_NUM=$(echo "$CURRENT_VERSION" | sed 's/.*-canary\.//')
-          NEW_CANARY=$((CANARY_NUM + 1))
-        else
-          NEW_CANARY=1
+      elif [[ "$BRANCH" =~ ^version-[0-9]+ ]]; then
+        # For version branches, increment patch or minor based on conventional commits
+        BUMP_TYPE="${{ steps.commits.outputs.bump }}"
+        if [ "$BUMP_TYPE" = "major" ]; then
+          echo "Major version bumps not allowed in version branches" >&2
+          exit 1
         fi
-        
-        NEW_VERSION="${BASE_VERSION}-canary.${NEW_CANARY}"
-        NPM_TAG="canary"
-        
-      elif [[ "$BRANCH" =~ ^v[0-9]+ ]]; then
-        # For version branches: increment patch
-        NEW_VERSION=$(increment_version "$CURRENT_VERSION" "patch")
+        NEW_VERSION=$(increment_version "$CURRENT_VERSION" "$BUMP_TYPE")
         NPM_TAG="${BRANCH}-latest"
-      fi
-
-      if [ "${{ inputs.dry-run }}" = "true" ]; then
-        echo "Current version: $CURRENT_VERSION"
-        echo "New version: $NEW_VERSION"
-        echo "NPM tag: $NPM_TAG"
       fi
 
       echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
       echo "npm_tag=$NPM_TAG" >> $GITHUB_OUTPUT
+      echo "is_release=$IS_RELEASE" >> $GITHUB_OUTPUT
 
-  - name: Create Previous Version Branch
-    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && inputs.dry-run != 'true'
+  - name: Create Version Branch
+    if: steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' && inputs.dry-run != 'true'
     shell: bash
     run: |
-      CURRENT_VERSION=${{ steps.version.outputs.new_version }}
-      MAJOR_VERSION=$(echo "$CURRENT_VERSION" | cut -d. -f1)
-      PREV_MAJOR=$((MAJOR_VERSION - 1))
-      BRANCH_NAME="v${PREV_MAJOR}"
+      VERSION=${{ steps.version.outputs.new_version }}
+      MAJOR_VERSION=$(echo "$VERSION" | cut -d. -f1)
+      BRANCH_NAME="version-${MAJOR_VERSION}"
 
-      # Check if this is a major version bump
-      if ! git branch -r | grep -q "origin/$BRANCH_NAME"; then
-        echo "Creating maintenance branch $BRANCH_NAME"
-        
-        # Create and push branch
-        git branch $BRANCH_NAME
-        git push origin $BRANCH_NAME
-        
-        # Create branch protection
-        curl -X PUT \
-          -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization: token ${{ inputs.github-token }}" \
-          "https://api.github.com/repos/${{ github.repository }}/branches/${BRANCH_NAME}/protection" \
-          -d '{
-            "required_status_checks": null,
-            "enforce_admins": true,
-            "required_pull_request_reviews": {
-              "required_approving_review_count": 1
-            },
-            "restrictions": null
-          }'
-      fi
+      # Create and push version branch
+      git checkout -b $BRANCH_NAME
+      git push origin $BRANCH_NAME
 
-  - name: Update Develop After Master PR
-    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && inputs.dry-run != 'true'
+      # Create branch protection
+      curl -X PUT \
+        -H "Accept: application/vnd.github.v3+json" \
+        -H "Authorization: token ${{ inputs.github-token }}" \
+        "https://api.github.com/repos/${{ github.repository }}/branches/${BRANCH_NAME}/protection" \
+        -d '{
+          "required_status_checks": null,
+          "enforce_admins": true,
+          "required_pull_request_reviews": {
+            "required_approving_review_count": 1
+          },
+          "restrictions": null
+        }'
+
+  - name: Update Package Versions
+    if: inputs.dry-run != 'true'
     shell: bash
     run: |
-      # Checkout develop branch
-      git fetch origin develop
-      git checkout develop
-
-      # Get the new master version and increment minor for develop
-      MASTER_VERSION=${{ steps.version.outputs.new_version }}
-      NEW_BASE_VERSION=$(echo "$MASTER_VERSION" | awk -F. '{$2++; $3=0; print $1"."$2"."$3}' OFS=.)
-      NEW_VERSION="${NEW_BASE_VERSION}-canary.1"
+      NEW_VERSION=${{ steps.version.outputs.new_version }}
 
       # Update package versions
       if [ -f "package.json" ]; then
@@ -166,32 +141,8 @@ runs:
       for pkg in packages/*; do
         if [ -f "$pkg/package.json" ]; then
           sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" $pkg/package.json
-        fi
-      done
-
-      # Commit and push changes
-      git add package.json packages/*/package.json
-      git commit -m "chore: bump version to ${NEW_VERSION} after master release [skip ci]"
-      git push origin develop
-
-  # Rest of the steps remain the same...
-  - name: Update Package Versions
-    if: inputs.dry-run != 'true'
-    shell: bash
-    run: |
-      NEW_VERSION=${{ steps.version.outputs.new_version }}
-
-      # Update root package.json
-      if [ -f "package.json" ]; then
-        sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" package.json
-      fi
-
-      # Update all package versions in packages directory
-      for pkg in packages/*; do
-        if [ -f "$pkg/package.json" ]; then
-          sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" $pkg/package.json
           
-          # Update internal dependencies versions
+          # Update internal dependencies
           PKG_NAME=$(node -p "require('./$pkg/package.json').name")
           for dep_pkg in packages/*; do
             if [ -f "$dep_pkg/package.json" ]; then
@@ -206,6 +157,7 @@ runs:
     shell: bash
     run: |
       NEW_VERSION=${{ steps.version.outputs.new_version }}
+      IS_RELEASE="${{ steps.version.outputs.is_release }}"
 
       # Commit version updates
       git add package.json packages/*/package.json
@@ -213,21 +165,16 @@ runs:
       git push origin ${{ github.ref_name }}
 
       # Create version tag
-      if [ "${{ github.event_name }}" = "pull_request" ] || [[ "${{ github.ref_name }}" =~ ^v[0-9]+ ]]; then
-        git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
-        git push origin "v${NEW_VERSION}"
-        
-        # For master branch, also update stable tag
-        if [ "${{ github.event_name }}" = "pull_request" ]; then
-          git tag -a "stable" -m "Latest stable release v${NEW_VERSION}" -f
-          git push origin stable -f
-        fi
-        
-        # For version branches, update their latest tags
-        if [[ "${{ github.ref_name }}" =~ ^v[0-9]+ ]]; then
-          git tag -a "${{ github.ref_name }}-latest" -m "Latest ${{ github.ref_name }} release v${NEW_VERSION}" -f
-          git push origin "${{ github.ref_name }}-latest" -f
-        fi
+      git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
+      git push origin "v${NEW_VERSION}"
+
+      # Update latest tags based on branch and release type
+      if [ "${{ github.ref_name }}" = "develop" ] && [ "$IS_RELEASE" = "true" ]; then
+        git tag -a "stable" -m "Latest stable release v${NEW_VERSION}" -f
+        git push origin stable -f
+      elif [[ "${{ github.ref_name }}" =~ ^version-[0-9]+ ]]; then
+        git tag -a "${{ github.ref_name }}-latest" -m "Latest ${{ github.ref_name }} release v${NEW_VERSION}" -f
+        git push origin "${{ github.ref_name }}-latest" -f
       fi
 
   - name: Publish to NPM
@@ -249,11 +196,12 @@ runs:
       done
 
   - name: Create GitHub Release
-    if: (github.event_name == 'pull_request' || github.ref_name != 'develop') && inputs.dry-run != 'true'
+    if: inputs.dry-run != 'true'
     uses: ncipollo/release-action@v1
     with:
       token: ${{ inputs.github-token }}
       tag: v${{ steps.version.outputs.new_version }}
       name: Release v${{ steps.version.outputs.new_version }}
       generateReleaseNotes: true
-      makeLatest: ${{ github.event_name == 'pull_request' }}
+      prerelease: ${{ steps.version.outputs.is_release != 'true' && github.ref_name == 'develop' }}
+      makeLatest: ${{ steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' }}
