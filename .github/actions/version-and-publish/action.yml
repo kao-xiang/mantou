@@ -169,7 +169,35 @@ runs:
     if: inputs.dry-run != 'true'
     shell: bash
     run: |
-      bunx conventional-changelog -p angular -i CHANGELOG.md -s
+      # Generate changelog for canary releases
+      if [[ "${{ steps.version.outputs.is_release }}" == "false" ]]; then
+        # Use the base version for canary releases (e.g., 1.0.22-canary)
+        BASE_VERSION=$(echo "${{ steps.version.outputs.new_version }}" | sed 's/-canary\.[0-9]*$//')
+        CANARY_VERSION="${BASE_VERSION}-canary"
+
+        # Get the commit hash of the previous canary release (if any)
+        PREV_CANARY_TAG=$(git describe --tags --abbrev=0 --match "v${BASE_VERSION}-canary.*" 2>/dev/null || echo "")
+
+        # Generate changelog for the current canary release only
+        if [[ -n "$PREV_CANARY_TAG" ]]; then
+          # Include changes since the previous canary release
+          bunx conventional-changelog -p angular -i CHANGELOG.md -s -r 0 --commit-path ${PREV_CANARY_TAG}..HEAD
+        else
+          # Include changes since the last stable release
+          LAST_STABLE_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" 2>/dev/null || echo "v0.0.0")
+          bunx conventional-changelog -p angular -i CHANGELOG.md -s -r 0 --commit-path ${LAST_STABLE_TAG}..HEAD
+        fi
+
+        # Update the version header
+        sed -i "s/^## \[.*\]/## ${CANARY_VERSION}/" CHANGELOG.md
+      else
+        # For stable releases, include all changes since the last stable release
+        LAST_STABLE_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" 2>/dev/null || echo "v0.0.0")
+
+        # Generate changelog for all changes since the last stable release
+        bunx conventional-changelog -p angular -i CHANGELOG.md -s -r 0 --commit-path ${LAST_STABLE_TAG}..HEAD
+      fi
+
       git add CHANGELOG.md
       git commit -m "chore: update changelog [skip ci]"
       git push origin ${{ github.ref_name }}
