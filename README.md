@@ -36,7 +36,7 @@ cd my-app
 bun install
 bun run dev
 ```
-Later in [Documentation](https://ppenter.github.io/mantou/)
+Later in [Documentation](https://kao-xiang.github.io/mantou/)
 
 ## 🎯 Roadmap
 
@@ -102,7 +102,7 @@ See our [Contributing Guide](CONTRIBUTING.md) for more details.
 
 ## 📘 Documentation
 
-Visit [this](https://ppenter.github.io/mantou/) for full documentation.
+Visit [this](https://kao-xiang.github.io/mantou/) for full documentation.
 
 ## 💬 Community
 
