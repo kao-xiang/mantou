@@ -16,13 +16,7 @@ inputs:
 runs:
   using: 'composite'
   steps:
-  # Step 1: Checkout Code
-  - name: Checkout code
-    uses: actions/checkout@v3
-    with:
-      ref: ${{ github.ref_name }}
-
-  # Step 2: Get Commit Info
+  # Step 1: Get Commit Info
   - name: Get Commit Info
     id: commits
     shell: bash
@@ -46,7 +40,7 @@ runs:
         echo "bump=patch" >> $GITHUB_OUTPUT
       fi
 
-  # Step 3: Process Version
+  # Step 2: Process Version
   - name: Process Version
     id: version
     shell: bash
@@ -81,12 +75,12 @@ runs:
         else
           # For regular commits on develop, always update canary version
           BUMP_TYPE="${{ steps.commits.outputs.bump }}"
-          NEW_BASE_VERSION="$BASE_VERSION" # Keep the base version unchanged
+          NEW_BASE_VERSION=$(increment_version "$BASE_VERSION" "$BUMP_TYPE")
 
           # Increment canary number
           CANARY_NUM=$(echo "$CURRENT_VERSION" | sed 's/.*-canary\.//')
           NEW_CANARY=$((CANARY_NUM + 1))
-          NEW_VERSION="${BASE_VERSION}-canary.${NEW_CANARY}"
+          NEW_VERSION="${NEW_BASE_VERSION}-canary.${NEW_CANARY}"
           NPM_TAG="canary"
         fi
 
@@ -105,7 +99,7 @@ runs:
       echo "npm_tag=$NPM_TAG" >> $GITHUB_OUTPUT
       echo "is_release=$IS_RELEASE" >> $GITHUB_OUTPUT
 
-  # Step 4: Create Version Branch (for releases)
+  # Step 3: Create Version Branch (for releases)
   - name: Create Version Branch
     if: steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' && inputs.dry-run != 'true'
     shell: bash
@@ -132,7 +126,7 @@ runs:
           "restrictions": null
         }'
 
-  # Step 5: Update Package Versions
+  # Step 4: Update Package Versions
   - name: Update Package Versions
     if: inputs.dry-run != 'true'
     shell: bash
@@ -158,7 +152,7 @@ runs:
         fi
       done
 
-  # Step 6: Generate Changelog
+  # Step 5: Generate Changelog
   - name: Generate Changelog
     if: inputs.dry-run != 'true'
     shell: bash
@@ -168,16 +162,13 @@ runs:
       git commit -m "chore: update changelog [skip ci]"
       git push origin ${{ github.ref_name }}
 
-  # Step 7: Git Operations
+  # Step 6: Git Operations
   - name: Git Operations
     if: inputs.dry-run != 'true'
     shell: bash
     run: |
       NEW_VERSION=${{ steps.version.outputs.new_version }}
       IS_RELEASE="${{ steps.version.outputs.is_release }}"
-
-      # Ensure we are on the correct branch
-      git checkout ${{ github.ref_name }}
 
       # Commit version updates
       git add package.json packages/*/package.json
@@ -197,7 +188,7 @@ runs:
         git push origin "${{ github.ref_name }}-latest" -f
       fi
 
-  # Step 8: Publish to NPM
+  # Step 7: Publish to NPM
   - name: Publish to NPM
     if: inputs.dry-run != 'true'
     shell: bash
@@ -216,7 +207,7 @@ runs:
         fi
       done
 
-  # Step 9: Create GitHub Release
+  # Step 8: Create GitHub Release
   - name: Create GitHub Release
     if: inputs.dry-run != 'true'
     uses: ncipollo/release-action@v1

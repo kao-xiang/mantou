@@ -2,7 +2,7 @@
   "name": "mantou",
   "module": "index.ts",
   "type": "module",
-  "version": "1.0.20-canary.4",
+  "version": "1.0.20",
   "private": true,
   "scripts": {
     "dev:mantou": "bun run --cwd packages/mantou dev",
