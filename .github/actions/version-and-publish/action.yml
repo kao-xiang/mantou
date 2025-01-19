@@ -65,20 +65,31 @@ runs:
       IS_RELEASE="${{ steps.commits.outputs.is_release }}"
 
       if [[ "$BRANCH" == "develop" ]]; then
-        # Check if the current version has a canary suffix
-        if [[ "$CURRENT_VERSION" =~ -canary\.[0-9]+$ ]]; then
-          # If version has canary suffix, increment canary number
-          BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
-          CANARY_NUM=$(echo "$CURRENT_VERSION" | sed 's/.*-canary\.//')
-          NEW_CANARY=$((CANARY_NUM + 1))
-          NEW_VERSION="${BASE_VERSION}-canary.${NEW_CANARY}"
-          NPM_TAG="canary"
+        if [[ "$IS_RELEASE" == "true" ]]; then
+          # If this is a release commit, remove the canary suffix
+          if [[ "$CURRENT_VERSION" =~ -canary\.[0-9]+$ ]]; then
+            NEW_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
+            NPM_TAG="latest"
+          else
+            # If no canary suffix, perform a conventional version bump
+            BUMP_TYPE="${{ steps.commits.outputs.bump }}"
+            NEW_VERSION=$(increment_version "$CURRENT_VERSION" "$BUMP_TYPE")
+            NPM_TAG="latest"
+          fi
         else
-          # If version has no canary suffix, perform conventional commit and add canary.1
-          BUMP_TYPE="${{ steps.commits.outputs.bump }}"
-          NEW_BASE_VERSION=$(increment_version "$CURRENT_VERSION" "$BUMP_TYPE")
-          NEW_VERSION="${NEW_BASE_VERSION}-canary.1"
-          NPM_TAG="canary"
+          # Handle non-release commits (canary logic)
+          if [[ "$CURRENT_VERSION" =~ -canary\.[0-9]+$ ]]; then
+            BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
+            CANARY_NUM=$(echo "$CURRENT_VERSION" | sed 's/.*-canary\.//')
+            NEW_CANARY=$((CANARY_NUM + 1))
+            NEW_VERSION="${BASE_VERSION}-canary.${NEW_CANARY}"
+            NPM_TAG="canary"
+          else
+            BUMP_TYPE="${{ steps.commits.outputs.bump }}"
+            NEW_BASE_VERSION=$(increment_version "$CURRENT_VERSION" "$BUMP_TYPE")
+            NEW_VERSION="${NEW_BASE_VERSION}-canary.1"
+            NPM_TAG="canary"
+          fi
         fi
 
       elif [[ "$BRANCH" =~ ^version-[0-9]+ ]]; then
