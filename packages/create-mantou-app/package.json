@@ -1,14 +1,14 @@
 {
   "name": "create-mantou-app",
   "module": "./dist/index.js",
-  "version": "1.0.19-canary.5",
+  "version": "1.0.20-canary.1",
   "publishConfig": {
     "access": "public",
     "tag": "latest",
     "registry": "https://registry.npmjs.org/"
   },
   "bin": {
-    "create-mantou-app": "1.0.19-canary.5"
+    "create-mantou-app": "1.0.20-canary.1"
   },
   "type": "module",
   "scripts": {
