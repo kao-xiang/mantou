@@ -65,22 +65,19 @@ runs:
       IS_RELEASE="${{ steps.commits.outputs.is_release }}"
 
       if [[ "$BRANCH" == "develop" ]]; then
-        # Get base version without canary
-        BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
-
-        if [ "$IS_RELEASE" = "true" ]; then
-          # For release commits, remove canary suffix
-          NEW_VERSION="$BASE_VERSION"
-          NPM_TAG="latest"
-        else
-          # For regular commits on develop, always update canary version
-          BUMP_TYPE="${{ steps.commits.outputs.bump }}"
-          NEW_BASE_VERSION=$(increment_version "$BASE_VERSION" "$BUMP_TYPE")
-
-          # Increment canary number
+        # Check if the current version has a canary suffix
+        if [[ "$CURRENT_VERSION" =~ -canary\.[0-9]+$ ]]; then
+          # If version has canary suffix, increment canary number
+          BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
           CANARY_NUM=$(echo "$CURRENT_VERSION" | sed 's/.*-canary\.//')
           NEW_CANARY=$((CANARY_NUM + 1))
-          NEW_VERSION="${NEW_BASE_VERSION}-canary.${NEW_CANARY}"
+          NEW_VERSION="${BASE_VERSION}-canary.${NEW_CANARY}"
+          NPM_TAG="canary"
+        else
+          # If version has no canary suffix, perform conventional commit and add canary.1
+          BUMP_TYPE="${{ steps.commits.outputs.bump }}"
+          NEW_BASE_VERSION=$(increment_version "$CURRENT_VERSION" "$BUMP_TYPE")
+          NEW_VERSION="${NEW_BASE_VERSION}-canary.1"
           NPM_TAG="canary"
         fi
 
@@ -106,25 +103,29 @@ runs:
     run: |
       VERSION=${{ steps.version.outputs.new_version }}
       MAJOR_VERSION=$(echo "$VERSION" | cut -d. -f1)
-      BRANCH_NAME="version-${MAJOR_VERSION}"
+      PREV_MAJOR_VERSION=$((MAJOR_VERSION - 1))
+      BRANCH_NAME="version-${PREV_MAJOR_VERSION}"
 
-      # Create and push version branch
-      git checkout -b $BRANCH_NAME
-      git push origin $BRANCH_NAME
+      # Check if the version branch already exists
+      if ! git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
+        # Create and push version branch
+        git checkout -b $BRANCH_NAME
+        git push origin $BRANCH_NAME
 
-      # Create branch protection
-      curl -X PUT \
-        -H "Accept: application/vnd.github.v3+json" \
-        -H "Authorization: token ${{ inputs.github-token }}" \
-        "https://api.github.com/repos/${{ github.repository }}/branches/${BRANCH_NAME}/protection" \
-        -d '{
-          "required_status_checks": null,
-          "enforce_admins": true,
-          "required_pull_request_reviews": {
-            "required_approving_review_count": 1
-          },
-          "restrictions": null
-        }'
+        # Create branch protection
+        curl -X PUT \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: token ${{ inputs.github-token }}" \
+          "https://api.github.com/repos/${{ github.repository }}/branches/${BRANCH_NAME}/protection" \
+          -d '{
+            "required_status_checks": null,
+            "enforce_admins": true,
+            "required_pull_request_reviews": {
+              "required_approving_review_count": 1
+            },
+            "restrictions": null
+          }'
+      fi
 
   # Step 4: Update Package Versions
   - name: Update Package Versions
