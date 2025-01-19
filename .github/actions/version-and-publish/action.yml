@@ -1,0 +1,248 @@
+name: 'Version and Publish'
+description: 'Handle versioning and publishing with automatic version branch creation'
+
+inputs:
+  npm-token:
+    description: 'NPM token for publishing'
+    required: true
+  github-token:
+    description: 'GitHub token for creating releases'
+    required: true
+  dry-run:
+    description: 'Run in dry-run mode'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+  - name: Set current version
+    id: current
+    shell: bash
+    run: |
+      echo "🔍 Reading current version..."
+      CURRENT_VERSION=$(node -p "require('./package.json').version")
+      echo "Current version: $CURRENT_VERSION"
+      echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
+      # Extract major version
+      MAJOR_VERSION=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+      echo "Major version: $MAJOR_VERSION"
+      echo "major=$MAJOR_VERSION" >> $GITHUB_OUTPUT
+
+  - name: Determine version and tag
+    id: version
+    shell: bash
+    run: |
+      BRANCH="${{ github.event_name == 'pull_request' && 'master' || github.ref_name }}"
+      echo "🔄 Processing branch: $BRANCH"
+      echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      CURRENT_VERSION=${{ steps.current.outputs.version }}
+      CURRENT_MAJOR=${{ steps.current.outputs.major }}
+
+      if [ "$BRANCH" = "master" ]; then
+        echo "📦 Processing master branch..."
+        # For master: remove canary suffix if present
+        NEW_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
+        
+        # Check if this is a major version bump
+        NEW_MAJOR=$(echo "$NEW_VERSION" | cut -d. -f1)
+        if [ "$NEW_MAJOR" -gt "$CURRENT_MAJOR" ]; then
+          echo "⚠️ Major version bump detected"
+          echo "is_major_bump=true" >> $GITHUB_OUTPUT
+          echo "previous_major=$CURRENT_MAJOR" >> $GITHUB_OUTPUT
+        else
+          echo "is_major_bump=false" >> $GITHUB_OUTPUT
+        fi
+        
+        NPM_TAG="latest"
+        
+      elif [ "$BRANCH" = "develop" ]; then
+        echo "🔧 Processing develop branch..."
+        # For develop: should be working on next minor or major version
+        if [[ "$CURRENT_VERSION" == *"-canary"* ]]; then
+          echo "Incrementing existing canary version..."
+          # Already on develop with canary, just increment canary number
+          CANARY_NUM=$(echo "$CURRENT_VERSION" | sed 's/.*-canary\.//')
+          NEW_CANARY=$((CANARY_NUM + 1))
+          NEW_VERSION="${CURRENT_VERSION%-canary.*}-canary.${NEW_CANARY}"
+        else
+          echo "Creating new canary version..."
+          # New develop version should bump minor by default
+          MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+          MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+          NEXT_MINOR=$((MINOR + 1))
+          NEW_VERSION="${MAJOR}.${NEXT_MINOR}.0-canary.1"
+        fi
+        NPM_TAG="canary"
+        
+      elif [[ "$BRANCH" =~ ^v[0-9]+ ]]; then
+        echo "🛠️ Processing version branch: $BRANCH"
+        # For version branches: increment patch
+        NEW_VERSION=$(echo "$CURRENT_VERSION" | awk -F. '{$NF++; print $0}' OFS=.)
+        NPM_TAG="${BRANCH}-latest"
+      fi
+
+      echo "New version: $NEW_VERSION"
+      echo "NPM tag: $NPM_TAG"
+      echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+      echo "npm_tag=$NPM_TAG" >> $GITHUB_OUTPUT
+
+  - name: Create previous version branch
+    if: steps.version.outputs.is_major_bump == 'true' && inputs.dry-run != 'true'
+    shell: bash
+    run: |
+      PREV_MAJOR=${{ steps.version.outputs.previous_major }}
+      BRANCH_NAME="v${PREV_MAJOR}"
+      echo "🌱 Creating maintenance branch: $BRANCH_NAME"
+
+      # Create and push branch from last state before version bump
+      git branch $BRANCH_NAME
+      git push origin $BRANCH_NAME
+
+      # Create branch protection rule using GitHub API
+      echo "🔒 Setting up branch protection..."
+      curl -X PUT \
+        -H "Accept: application/vnd.github.v3+json" \
+        -H "Authorization: token ${{ inputs.github-token }}" \
+        "https://api.github.com/repos/${{ github.repository }}/branches/${BRANCH_NAME}/protection" \
+        -d '{
+          "required_status_checks": null,
+          "enforce_admins": true,
+          "required_pull_request_reviews": {
+            "required_approving_review_count": 1
+          },
+          "restrictions": null
+        }'
+
+  - name: Update package versions
+    shell: bash
+    run: |
+      NEW_VERSION=${{ steps.version.outputs.new_version }}
+      echo "📝 Updating package versions to $NEW_VERSION"
+
+      if [ "${{ inputs.dry-run }}" = "true" ]; then
+        echo "[DRY RUN] Would update versions to $NEW_VERSION"
+        exit 0
+      fi
+
+      # Update root package.json
+      if [ -f "package.json" ]; then
+        sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" package.json
+        echo "Updated root package.json"
+      fi
+
+      # Update all package versions in packages directory
+      for pkg in packages/*; do
+        if [ -f "$pkg/package.json" ]; then
+          sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" $pkg/package.json
+          echo "Updated $pkg/package.json"
+          
+          # Update internal dependencies versions
+          PKG_NAME=$(node -p "require('./$pkg/package.json').name")
+          for dep_pkg in packages/*; do
+            if [ -f "$dep_pkg/package.json" ]; then
+              sed -i "s/\"$PKG_NAME\": \".*\"/\"$PKG_NAME\": \"$NEW_VERSION\"/" $dep_pkg/package.json
+              echo "Updated dependency in $dep_pkg/package.json"
+            fi
+          done
+        fi
+      done
+
+  - name: Push version update
+    shell: bash
+    run: |
+      NEW_VERSION=${{ steps.version.outputs.new_version }}
+      BRANCH=${{ steps.version.outputs.branch }}
+
+      if [ "${{ inputs.dry-run }}" = "true" ]; then
+        echo "[DRY RUN] Would commit and push:"
+        echo "- Version: $NEW_VERSION"
+        echo "- Branch: $BRANCH"
+        exit 0
+      fi
+
+      echo "📤 Pushing version update..."
+      git add package.json packages/*/package.json
+      git commit -m "chore: update version to ${NEW_VERSION} [skip ci]"
+      git push origin $BRANCH
+
+  - name: Create version tag
+    if: github.event_name == 'pull_request' || github.ref_name != 'develop'
+    shell: bash
+    run: |
+      NEW_VERSION=${{ steps.version.outputs.new_version }}
+      BRANCH=${{ steps.version.outputs.branch }}
+
+      if [ "${{ inputs.dry-run }}" = "true" ]; then
+        echo "[DRY RUN] Would create tags:"
+        echo "- v${NEW_VERSION}"
+        if [ "$BRANCH" = "master" ]; then
+          echo "- stable"
+        fi
+        if [[ "$BRANCH" =~ ^v[0-9]+ ]]; then
+          echo "- ${BRANCH}-latest"
+        fi
+        exit 0
+      fi
+
+      echo "🏷️ Creating version tags..."
+      # Create version tag
+      git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
+      git push origin "v${NEW_VERSION}"
+
+      # For master branch, also update stable tag
+      if [ "$BRANCH" = "master" ]; then
+        git tag -a "stable" -m "Latest stable release v${NEW_VERSION}" -f
+        git push origin stable -f
+      fi
+
+      # For version branches, update their latest tags
+      if [[ "$BRANCH" =~ ^v[0-9]+ ]]; then
+        git tag -a "${BRANCH}-latest" -m "Latest ${BRANCH} release v${NEW_VERSION}" -f
+        git push origin "${BRANCH}-latest" -f
+      fi
+
+  - name: Create NPM config
+    if: inputs.dry-run != 'true'
+    shell: bash
+    run: |
+      echo "🔑 Creating NPM configuration..."
+      echo "//registry.npmjs.org/:_authToken=${{ inputs.npm-token }}" > .npmrc
+
+  - name: Publish to NPM
+    shell: bash
+    run: |
+      NPM_TAG=${{ steps.version.outputs.npm_tag }}
+
+      if [ "${{ inputs.dry-run }}" = "true" ]; then
+        echo "[DRY RUN] Would publish packages with tag: $NPM_TAG"
+        for pkg in packages/*; do
+          if [ -f "$pkg/package.json" ]; then
+            PKG_NAME=$(node -p "require('./$pkg/package.json').name")
+            echo "- Would publish $PKG_NAME@${{ steps.version.outputs.new_version }}"
+          fi
+        done
+        exit 0
+      fi
+
+      echo "📦 Publishing packages..."
+      for pkg in packages/*; do
+        if [ -f "$pkg/package.json" ]; then
+          cd $pkg
+          echo "Publishing $(node -p "require('./package.json').name")..."
+          npm publish --tag $NPM_TAG --access public
+          cd ../..
+        fi
+      done
+
+  - name: Create GitHub Release
+    if: (github.event_name == 'pull_request' || github.ref_name != 'develop') && inputs.dry-run != 'true'
+    uses: ncipollo/release-action@v1
+    with:
+      token: ${{ inputs.github-token }}
+      tag: v${{ steps.version.outputs.new_version }}
+      name: Release v${{ steps.version.outputs.new_version }}
+      generateReleaseNotes: true
+      makeLatest: ${{ github.event_name == 'pull_request' }}

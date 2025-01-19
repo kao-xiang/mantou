@@ -1,0 +1,16 @@
+{
+    "action": "closed",
+    "pull_request": {
+      "merged": true,
+      "base": {
+        "ref": "master"
+      },
+      "head": {
+        "ref": "develop"
+      }
+    },
+    "repository": {
+      "full_name": "your-org/your-repo",
+      "name": "your-repo"
+    }
+  }

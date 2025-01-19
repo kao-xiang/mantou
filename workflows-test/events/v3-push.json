@@ -1,0 +1,7 @@
+{
+    "ref": "refs/heads/v3",
+    "repository": {
+      "full_name": "your-org/your-repo",
+      "name": "your-repo"
+    }
+  }

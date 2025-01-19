@@ -1,25 +1,16 @@
-name: Release
+name: Test Release
 
 on:
-  # For develop branch and version maintenance branches
   push:
     branches:
-      - develop
-      - 'v[0-9]+'
-  # For master branch
+      - 'test/*'
   pull_request:
-    types: [closed]
     branches:
-      - master
+      - 'test/*'
 
 jobs:
-  release:
+  test-release:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
-    
-    permissions:
-      contents: write
-      packages: write
     
     steps:
       - name: Checkout
@@ -44,13 +35,9 @@ jobs:
       - name: Build
         run: bun run build
       
-      - name: Set Git User
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-      
-      - name: Version and Publish
+      - name: Test Version and Publish (Dry Run)
         uses: ./.github/actions/version-and-publish
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          dry-run: true
