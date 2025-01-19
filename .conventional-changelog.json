@@ -1,0 +1,13 @@
+{
+    "preset": "angular",
+    "releaseCount": 0,
+    "types": [
+      { "type": "feat", "section": "Features" },
+      { "type": "fix", "section": "Bug Fixes" },
+      { "type": "chore", "section": "Chores" },
+      { "type": "docs", "section": "Documentation" },
+      { "type": "style", "section": "Code Style" },
+      { "type": "refactor", "section": "Refactors" },
+      { "type": "test", "section": "Tests" }
+    ]
+  }

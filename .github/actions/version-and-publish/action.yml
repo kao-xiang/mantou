@@ -1,12 +1,12 @@
-name: 'Version and Publish'
-description: 'Handle versioning and publishing with conventional commits'
+name: 'Version, Publish, and Changelog'
+description: 'Handle versioning, publishing, and changelog generation with conventional commits'
 
 inputs:
   npm-token:
     description: 'NPM token for publishing'
     required: true
   github-token:
-    description: 'GitHub token for creating releases'
+    description: 'GitHub token for creating releases and branch protection'
     required: true
   dry-run:
     description: 'Run in dry-run mode'
@@ -16,6 +16,7 @@ inputs:
 runs:
   using: 'composite'
   steps:
+  # Step 1: Get Commit Info
   - name: Get Commit Info
     id: commits
     shell: bash
@@ -39,6 +40,7 @@ runs:
         echo "bump=patch" >> $GITHUB_OUTPUT
       fi
 
+  # Step 2: Process Version
   - name: Process Version
     id: version
     shell: bash
@@ -97,6 +99,7 @@ runs:
       echo "npm_tag=$NPM_TAG" >> $GITHUB_OUTPUT
       echo "is_release=$IS_RELEASE" >> $GITHUB_OUTPUT
 
+  # Step 3: Create Version Branch (for releases)
   - name: Create Version Branch
     if: steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' && inputs.dry-run != 'true'
     shell: bash
@@ -123,6 +126,7 @@ runs:
           "restrictions": null
         }'
 
+  # Step 4: Update Package Versions
   - name: Update Package Versions
     if: inputs.dry-run != 'true'
     shell: bash
@@ -148,6 +152,17 @@ runs:
         fi
       done
 
+  # Step 5: Generate Changelog
+  - name: Generate Changelog
+    if: inputs.dry-run != 'true'
+    shell: bash
+    run: |
+      bunx conventional-changelog -p angular -i CHANGELOG.md -s
+      git add CHANGELOG.md
+      git commit -m "chore: update changelog [skip ci]"
+      git push origin ${{ github.ref_name }}
+
+  # Step 6: Git Operations
   - name: Git Operations
     if: inputs.dry-run != 'true'
     shell: bash
@@ -161,7 +176,7 @@ runs:
       git push origin ${{ github.ref_name }}
 
       # Create version tag
-      git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
+      git tag -a "v${NEW_VERSION}" -m "v${NEW_VERSION}"
       git push origin "v${NEW_VERSION}"
 
       # Update latest tags based on branch and release type
@@ -173,6 +188,7 @@ runs:
         git push origin "${{ github.ref_name }}-latest" -f
       fi
 
+  # Step 7: Publish to NPM
   - name: Publish to NPM
     if: inputs.dry-run != 'true'
     shell: bash
@@ -191,13 +207,15 @@ runs:
         fi
       done
 
+  # Step 8: Create GitHub Release
   - name: Create GitHub Release
     if: inputs.dry-run != 'true'
     uses: ncipollo/release-action@v1
     with:
       token: ${{ inputs.github-token }}
       tag: v${{ steps.version.outputs.new_version }}
-      name: Release v${{ steps.version.outputs.new_version }}
-      generateReleaseNotes: true
+      name: v${{ steps.version.outputs.new_version }}
+      bodyFile: CHANGELOG.md
+      generateReleaseNotes: false
       prerelease: ${{ steps.version.outputs.is_release != 'true' && github.ref_name == 'develop' }}
       makeLatest: ${{ steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' }}
