@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ppenter.github.io/mantou/sitemap_index.xml
+Sitemap: https://kao-xiang.github.io/mantou/sitemap_index.xml
