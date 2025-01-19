@@ -79,9 +79,12 @@ runs:
             BASE_VERSION=$(increment_version "$MASTER_VERSION" "minor")
           fi
         else
-          # Normal develop branch version bump based on conventional commits
+          # For develop branch, only bump version if it's a major/minor change
+          # For fixes, just increment the canary number
           BUMP_TYPE="${{ steps.commits.outputs.bump }}"
-          BASE_VERSION=$(increment_version "$BASE_VERSION" "$BUMP_TYPE")
+          if [ "$BUMP_TYPE" = "major" ] || [ "$BUMP_TYPE" = "minor" ]; then
+            BASE_VERSION=$(increment_version "$BASE_VERSION" "$BUMP_TYPE")
+          fi
         fi
         
         # Add canary suffix
