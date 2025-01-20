@@ -1,14 +1,14 @@
 {
   "name": "create-mantou-app",
   "module": "./src/index.ts",
-  "version": "1.0.24",
+  "version": "1.0.25-canary.1",
   "publishConfig": {
     "access": "public",
     "tag": "latest",
     "registry": "https://registry.npmjs.org/"
   },
   "bin": {
-    "create-mantou-app": "./src/index.ts"
+    "create-mantou-app": "1.0.25-canary.1"
   },
   "type": "module",
   "scripts": {
