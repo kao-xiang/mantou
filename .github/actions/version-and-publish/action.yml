@@ -180,41 +180,22 @@ runs:
     if: inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
     shell: bash
     run: |
-      # Generate changelog for canary releases
-      if [[ "${{ steps.version.outputs.is_release }}" == "false" ]]; then
-        # Use the base version for canary releases (e.g., 1.0.23-canary)
-        BASE_VERSION=$(echo "${{ steps.version.outputs.new_version }}" | sed 's/-canary\.[0-9]*$//')
-        CANARY_VERSION="${BASE_VERSION}-canary"
+      # Install conventional-changelog-cli if not already installed
+      if ! command -v conventional-changelog &> /dev/null; then
+        npm install -g conventional-changelog-cli
+      fi
 
-        # Get the commit hash of the previous canary release (if any)
-        PREV_CANARY_TAG=$(git describe --tags --abbrev=0 --match "v${BASE_VERSION}-canary.*" 2>/dev/null || echo "")
+      # Generate changelog
+      conventional-changelog -p angular -i CHANGELOG.md -s -k package.json
 
-        # Generate changelog for the current canary release only
-        if [[ -n "$PREV_CANARY_TAG" ]]; then
-          # Include changes since the previous canary release
-          bunx conventional-changelog -c .conventional-changelog.json -i CHANGELOG.md -s -r 0 --commit-path ${PREV_CANARY_TAG}..HEAD
-        else
-          # Include changes since the last stable release
-          LAST_STABLE_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" 2>/dev/null || echo "v0.0.0")
-          bunx conventional-changelog -c .conventional-changelog.json -i CHANGELOG.md -s -r 0 --commit-path ${LAST_STABLE_TAG}..HEAD
-        fi
-
-        # Remove the compare link from the version header
-        sed -i "s/^## \[.*\]/## ${CANARY_VERSION}/" CHANGELOG.md
+      # Commit the changelog if it was updated
+      if git diff --exit-code CHANGELOG.md > /dev/null; then
+        echo "No changes to CHANGELOG.md"
       else
-        # For stable releases, include all changes since the last stable release
-        LAST_STABLE_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" 2>/dev/null || echo "v0.0.0")
-
-        # Generate changelog for all changes since the last stable release
-        bunx conventional-changelog -c .conventional-changelog.json -i CHANGELOG.md -s -r 0 --commit-path ${LAST_STABLE_TAG}..HEAD
-
-        # Remove the compare link from the version header
-        sed -i "s/^## \[.*\]/## ${{ steps.version.outputs.new_version }}/" CHANGELOG.md
-      fi 
-
-      git add CHANGELOG.md
-      git commit -m "chore: update changelog [skip ci]"
-      git push origin ${{ github.ref_name }}
+        git add CHANGELOG.md
+        git commit -m "docs: update changelog for v${{ steps.version.outputs.new_version }} [skip ci]"
+        git push origin ${{ github.ref_name }}
+      fi
 
   # Step 6: Git Operations
   - name: Git Operations
@@ -273,3 +254,21 @@ runs:
       generateReleaseNotes: false
       prerelease: ${{ steps.version.outputs.is_release != 'true' && github.ref_name == 'develop' }}
       makeLatest: ${{ steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' }}
+
+  # Step 9: Push Release to Master
+  - name: Push Release to Master
+    if: steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' && inputs.dry-run != 'true'
+    shell: bash
+    run: |
+      # Checkout master branch
+      git fetch origin master
+      git checkout master
+
+      # Merge develop into master
+      git merge origin/develop --no-ff -m "chore: release v${{ steps.version.outputs.new_version }} [skip ci]"
+
+      # Push to master
+      git push origin master
+
+      # Push the release tag to master
+      git push origin "v${{ steps.version.outputs.new_version}}"
