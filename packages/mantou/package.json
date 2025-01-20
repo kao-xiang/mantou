@@ -1,6 +1,6 @@
 {
   "name": "mantou",
-  "version": "1.0.25-canary.4",
+  "version": "1.0.25",
   "publishConfig": {
     "access": "public",
     "tag": "latest",
