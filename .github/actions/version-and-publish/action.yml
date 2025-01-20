@@ -22,10 +22,10 @@ runs:
     shell: bash
     run: |
       # Get commits since last tag
-      COMMITS=$(git log --format="%s" $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD)
+      COMMITS=$(git log --format="%B" $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD)
 
       # Check if all commits are non-release commits (e.g., doc:, chore:, ci:, etc.)
-      if echo "$COMMITS" | grep -qE "^(feat|fix|feat!|BREAKING CHANGE):"; then
+      if echo "$COMMITS" | grep -qE "^(feat|fix|feat!)(\([^)]+\))?:" || echo "$COMMITS" | grep -q "BREAKING CHANGE"; then
         echo "has_release_commits=true" >> $GITHUB_OUTPUT
       else
         echo "has_release_commits=false" >> $GITHUB_OUTPUT
@@ -39,11 +39,11 @@ runs:
       fi
 
       # Check commit types for version bump
-      if echo "$COMMITS" | grep -q "^feat!:\|^BREAKING CHANGE"; then
+      if echo "$COMMITS" | grep -qE "^(feat!)(\([^)]+\))?:" || echo "$COMMITS" | grep -q "BREAKING CHANGE"; then
         echo "bump=major" >> $GITHUB_OUTPUT
-      elif echo "$COMMITS" | grep -q "^feat:"; then
+      elif echo "$COMMITS" | grep -qE "^(feat)(\([^)]+\))?:"; then
         echo "bump=minor" >> $GITHUB_OUTPUT
-      elif echo "$COMMITS" | grep -q "^fix:"; then
+      elif echo "$COMMITS" | grep -qE "^(fix)(\([^)]+\))?:"; then
         echo "bump=patch" >> $GITHUB_OUTPUT
       else
         # Treat all other commits (including invalid ones) as patch-level changes
