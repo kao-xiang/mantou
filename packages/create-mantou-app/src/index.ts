@@ -48,6 +48,7 @@ async function createProject(options: ProjectOptions) {
         "mantou": mantouVersion,
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
+        "react-router": "^7.1.3",
       },
       devDependencies: {
         "bun-types": "latest",
