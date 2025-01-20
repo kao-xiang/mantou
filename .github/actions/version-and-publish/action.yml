@@ -24,6 +24,13 @@ runs:
       # Get commits since last tag
       COMMITS=$(git log --format="%s" $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD)
 
+      # Check if all commits are non-release commits (e.g., doc:, chore:, ci:, etc.)
+      if echo "$COMMITS" | grep -qvE "^(feat|fix|feat!|BREAKING CHANGE):"; then
+        echo "has_release_commits=false" >> $GITHUB_OUTPUT
+      else
+        echo "has_release_commits=true" >> $GITHUB_OUTPUT
+      fi
+
       # Check if this is a release commit
       if echo "$COMMITS" | grep -q "^release:"; then
         echo "is_release=true" >> $GITHUB_OUTPUT
@@ -36,13 +43,17 @@ runs:
         echo "bump=major" >> $GITHUB_OUTPUT
       elif echo "$COMMITS" | grep -q "^feat:"; then
         echo "bump=minor" >> $GITHUB_OUTPUT
+      elif echo "$COMMITS" | grep -q "^fix:"; then
+        echo "bump=patch" >> $GITHUB_OUTPUT
       else
+        # Treat all other commits (including invalid ones) as patch-level changes
         echo "bump=patch" >> $GITHUB_OUTPUT
       fi
 
   # Step 2: Process Version
   - name: Process Version
     id: version
+    if: steps.commits.outputs.has_release_commits == 'true'
     shell: bash
     run: |
       CURRENT_VERSION=$(node -p "require('./package.json').version")
@@ -109,7 +120,7 @@ runs:
 
   # Step 3: Create Version Branch (for releases)
   - name: Create Version Branch
-    if: steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' && inputs.dry-run != 'true'
+    if: steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' && inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
     shell: bash
     run: |
       VERSION=${{ steps.version.outputs.new_version }}
@@ -140,7 +151,7 @@ runs:
 
   # Step 4: Update Package Versions
   - name: Update Package Versions
-    if: inputs.dry-run != 'true'
+    if: inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
     shell: bash
     run: |
       NEW_VERSION=${{ steps.version.outputs.new_version }}
@@ -166,7 +177,7 @@ runs:
 
   # Step 5: Generate Changelog
   - name: Generate Changelog
-    if: inputs.dry-run != 'true'
+    if: inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
     shell: bash
     run: |
       # Generate changelog for canary releases
@@ -207,7 +218,7 @@ runs:
 
   # Step 6: Git Operations
   - name: Git Operations
-    if: inputs.dry-run != 'true'
+    if: inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
     shell: bash
     run: |
       NEW_VERSION=${{ steps.version.outputs.new_version }}
@@ -233,7 +244,7 @@ runs:
 
   # Step 7: Publish to NPM
   - name: Publish to NPM
-    if: inputs.dry-run != 'true'
+    if: inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
     shell: bash
     run: |
       NPM_TAG=${{ steps.version.outputs.npm_tag }}
@@ -252,7 +263,7 @@ runs:
 
   # Step 8: Create GitHub Release
   - name: Create GitHub Release
-    if: inputs.dry-run != 'true'
+    if: inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
     uses: ncipollo/release-action@v1
     with:
       token: ${{ inputs.github-token }}
