@@ -38,7 +38,7 @@
     "@types/react-dom": "^19.0.2"
   },
   "bin": {
-    "mantou": "./src/index.ts"
+    "mantou": "./src/cli/index.ts"
   },
   "exports": {
     ".": {
