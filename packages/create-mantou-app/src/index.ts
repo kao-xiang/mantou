@@ -54,7 +54,7 @@ async function createProject(options: ProjectOptions) {
         "bun-types": "latest",
         "typescript": "^5.0.0"
       }
-    };
+    }; 
 
     // Add optional dependencies
     // if (options.database === 'postgres') {
