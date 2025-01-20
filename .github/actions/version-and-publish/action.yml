@@ -166,14 +166,6 @@ runs:
       for pkg in packages/*; do
         if [ -f "$pkg/package.json" ]; then
           sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" $pkg/package.json
-          
-          # # Update internal dependencies
-          # PKG_NAME=$(node -p "require('./$pkg/package.json').name")
-          # for dep_pkg in packages/*; do
-          #   if [ -f "$dep_pkg/package.json" ]; then
-          #     sed -i "s/\"$PKG_NAME\": \".*\"/\"$PKG_NAME\": \"$NEW_VERSION\"/" $dep_pkg/package.json
-          #   fi
-          # done
         fi
       done
 
