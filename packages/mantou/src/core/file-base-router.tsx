@@ -135,20 +135,24 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
   private normalizePath(rawPath: string): string {
     let newPath =
       rawPath
-        .replace(/\\/g, "/")
-        .replace(/\.ts$|\.js$/, "")
-        .replace(/\/index$/, "")
-        .replace(/\/route$/, "")
-        .replace(/\[\.{3}(.*?)\]/, ":$1*")
-        .replace(/\[(.*?)\]/g, ":$1")
-        .replace(/^\/+|\/+$/g, "")
-        .replace(/\((.*?)\)/g, "")
-        .replace(/\/+/g, "/")
-        .replace(/\/$/, "") || "/";
-
+        .replace(/\\/g, "/")         // Normalize Windows backslashes to forward slashes
+        .replace(/\.ts$|\.js$/, "")   // Remove `.ts` and `.js` extensions
+        .replace(/\/index$/, "")      // Remove `/index`
+        .replace(/\/route$/, "")      // Remove `/route`
+        .replace(/\[\.{3}(.*?)\]/, ":$1*") // Handle spread parameters like `[...param]`
+        .replace(/\[(.*?)\]/g, ":$1")  // Handle dynamic parameters like `[param]`
+        .replace(/^\/+|\/+$/g, "")     // Remove leading/trailing slashes
+        .replace(/\((.*?)\)/g, "")      // Remove any parentheses (like in optional routes)
+        .replace(/\/+/g, "/")          // Replace multiple slashes with one
+        .replace(/\/$/, "") || "/";    // Remove trailing slashes, default to `/`
+  
     if (!newPath.startsWith("/")) {
       newPath = `/${newPath}`;
     }
+  
+    // Ensure the path is in lowercase for consistency (especially on Windows)
+    newPath = newPath.toLowerCase();
+  
     return newPath;
   }
 
