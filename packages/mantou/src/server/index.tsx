@@ -100,13 +100,13 @@ export async function buildRoutes(
 
   try{
     app.use(staticPlugin({
-      assets: process.cwd() + '/dist',
+      assets: upath.resolve(process.cwd(), 'dist'),
       prefix: '/dist',
       alwaysStatic: true,
     }))
   
     app.use(staticPlugin({
-      assets: process.cwd() + '/public',
+      assets: upath.resolve(process.cwd(), 'public'),
       prefix: '/public',
       alwaysStatic: true,
     }))
