@@ -1,6 +1,6 @@
 import { Elysia, type Static, type TSchema } from "elysia";
 import { glob } from "glob";
-import path from "path";
+import upath from "upath";
 import type { ServerOptions } from "@/types/server";
 import fs from "fs/promises";
 import { writeRecursive } from "@/lib/fs";
@@ -128,8 +128,8 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
 
   constructor(config: ServerOptions) {
     this.config = config;
-    this.appDir = path.resolve(process.cwd(), config?.baseDir || "./src", config.appDir || "");
-    this.baseDir = path.resolve(process.cwd(), config?.baseDir || "./src");
+    this.appDir = upath.resolve(process.cwd(), config?.baseDir || "./src", config.appDir || "");
+    this.baseDir = upath.resolve(process.cwd(), config?.baseDir || "./src");
   }
 
   private normalizePath(rawPath: string): string {
@@ -208,17 +208,17 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
   }
 
   public async buildApp() {
-    const outputDir = path.resolve(
+    const outputDir = upath.resolve(
       process.cwd(),
       this.config.outputDir || "./dist"
     );
 
     // delete existing output directory
     await fs.rm(outputDir, { recursive: true, force: true });
-    const files = glob.sync("**/*.{ts,js,tsx,jsx}", {
-      cwd: this.baseDir,
-      ignore: ["**/*.d.ts", "**/*.test.ts", "**/*.spec.ts", "_*/**"],
-    });
+    // const files = glob.sync("**/*.{ts,js,tsx,jsx}", {
+    //   cwd: this.baseDir,
+    //   ignore: ["**/*.d.ts", "**/*.test.ts", "**/*.spec.ts", "_*/**"],
+    // });
 
     await this.resolveRoutes();
 
@@ -390,15 +390,15 @@ else {
 }
 `;
 
-    await writeRecursive(path.resolve(outputDir, "App.tsx"), appContent);
-    await writeRecursive(path.resolve(outputDir, "index.tsx"), indexContent);
+    await writeRecursive(upath.resolve(outputDir, "App.tsx"), appContent);
+    await writeRecursive(upath.resolve(outputDir, "index.tsx"), indexContent);
 
     await Bun.build({
-      entrypoints: [path.resolve(outputDir, "index.tsx")],
-      outdir: path.resolve(outputDir),
+      entrypoints: [upath.resolve(outputDir, "index.tsx")],
+      outdir: upath.resolve(outputDir),
     });
 
-    await fs.unlink(path.resolve(outputDir, "index.tsx"));
+    await fs.unlink(upath.resolve(outputDir, "index.tsx"));
   }
 
   private getPathFromLayout(layoutPath: string): string {
@@ -408,8 +408,8 @@ else {
   }
 
   private filePathToRoutePath(filePath: string): string {
-    const parsedPath = path.parse(filePath);
-    const relativePath = path.relative(this.appDir, parsedPath.dir);
+    const parsedPath = upath.parse(filePath);
+    const relativePath = upath.relative(this.appDir, parsedPath.dir);
     return this.normalizePath(relativePath);
   }
 
@@ -427,7 +427,7 @@ else {
   }
 
   private async processRoute(file: string): Promise<void> {
-    const module = await import(path.resolve(`${file}?imported=${Date.now()}`));
+    const module = await import(upath.resolve(`${file}?imported=${Date.now()}`));
     const routePath = this.filePathToRoutePath(file);
 
     if (this.routes.find((route) => route.path === routePath)) {
@@ -517,7 +517,7 @@ else {
       files
         .filter((file) => file.includes("middleware."))
         .map((file) =>
-          this.processMiddleware(path.resolve(this.appDir, file))
+          this.processMiddleware(upath.resolve(this.appDir, file))
         )
     );
 
@@ -527,7 +527,7 @@ else {
         .filter((file) => file.includes("route."))
         .map(async (file) => {
           const resolvedPath = this.filePathToRoutePath(
-            path.resolve(this.appDir, file)
+            upath.resolve(this.appDir, file)
           );
 
           if (this.pathMap.has(resolvedPath)) {
@@ -539,7 +539,7 @@ else {
           }
 
           this.pathMap.set(resolvedPath, file);
-          await this.processRoute(path.resolve(this.appDir, file));
+          await this.processRoute(upath.resolve(this.appDir, file));
         })
     );
 
@@ -547,14 +547,14 @@ else {
     await Promise.all(
       files
         .filter((file) => file.includes("layout."))
-        .map((file) => this.processLayout(path.resolve(this.appDir, file)))
+        .map((file) => this.processLayout(upath.resolve(this.appDir, file)))
     );
 
     // Finally process pages
     await Promise.all(
       files
         .filter((file) => file.includes("page."))
-        .map((file) => this.processPage(path.resolve(this.appDir, file)))
+        .map((file) => this.processPage(upath.resolve(this.appDir, file)))
     );
 
     // Merge pages into layouts

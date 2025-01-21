@@ -6,7 +6,7 @@ import { swagger } from '@elysiajs/swagger'
 import { logger } from '../lib/logger';
 import _ from 'lodash';
 import type { ServerOptions } from '@/types/server';
-import path, { resolve } from 'path';
+import upath, { resolve } from 'upath';
 import { loadConfig } from '@/lib/fs';
 import cors from '@elysiajs/cors';
 import { RouteResolver } from '@/core/file-base-router';
@@ -151,15 +151,15 @@ export async function buildRoutes(
   for(const page of resolver.pages) {
     app.get(page.path, async (ctx) => {
       try {
-        const ImportedApp = await import(path.resolve(config?.outputDir || "./dist", `App.tsx?imported=${Date.now()}`));
+        const ImportedApp = await import(upath.resolve(config?.outputDir || "./dist", `App.tsx?imported=${Date.now()}`));
         const Component = ImportedApp.default
   
         if(!projectReact || !projectReactDOMServer || !projectReactRouter) {
           await loadProjectReact(process.cwd());
         }
 
-        const layout = await import(resolver.getLayoutByPath(ctx.path)?.filePath + `?imported=${Date.now()}`).then((layout) => layout).catch((e) => { console.error("Failed to load layout", e); return null; });
-        const page = await import(resolver.getPageByPath(ctx.path)?.filePath + `?imported=${Date.now()}`).then((page) => page).catch((e) => { console.error("Failed to load page", e); return null; });
+        const layout = await import(upath.resolve(resolver.getLayoutByPath(ctx.path)?.filePath + `?imported=${Date.now()}`)).then((layout) => layout).catch((e) => { console.error("Failed to load layout", e); return null; });
+        const page = await import(upath.resolve(resolver.getPageByPath(ctx.path)?.filePath + `?imported=${Date.now()}`)).then((page) => page).catch((e) => { console.error("Failed to load page", e); return null; });
 
         const layoutMetadata = layout.metadata || {};
         const pageMetadata = page.metadata || {};
@@ -186,11 +186,11 @@ export async function buildRoutes(
           ),
         )
 
-        const csss = glob.sync(process.cwd() + '/dist/*.css').map((file) => {
-          return `<link rel="stylesheet" href="/dist/${file.split('/').pop()}" />`
+        const csss = glob.sync(upath.join(process.cwd(), 'dist', '*.css')).map((file) => {
+          return `<link rel="stylesheet" href="/dist/${upath.basename(file)}" />`
         }).join('\n')
 
-        const loadedHTML = await fs.readFile(path.resolve(process.cwd(), 'public/index.html'), 'utf-8')
+        const loadedHTML = await fs.readFile(upath.resolve(process.cwd(), 'public/index.html'), 'utf-8')
 
         const html = loadedHTML
         .replace("<!-- mantou_header -->", `
@@ -301,7 +301,7 @@ export async function buildRoutes(
 }
 
 export const startServer = async (_options: ServerOptions) => {
-  const options = await loadConfig(path.resolve(process.cwd() || "", 'mantou.config.ts'), _options)
+  const options = await loadConfig(upath.resolve(process.cwd() || "", 'mantou.config.ts'), _options)
   const app = new Elysia()
 
   const isSSL = options.ssl
