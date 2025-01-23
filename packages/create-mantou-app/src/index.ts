@@ -49,10 +49,12 @@ async function createProject(options: ProjectOptions) {
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
         "react-router": "^7.1.3",
+        "glob": "^11.0.1"
       },
       devDependencies: {
         "bun-types": "latest",
-        "typescript": "^5.0.0"
+        "typescript": "^5.0.0",
+        "@types/react": "^18.0.0",
       }
     }; 
 

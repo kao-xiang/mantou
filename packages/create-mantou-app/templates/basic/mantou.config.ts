@@ -1,6 +1,7 @@
 import type { ServerOptions } from 'mantou'
 
 export default {
+  baseDir: 'src',
   swagger: {
     path: '/docs',
     documentation: {
