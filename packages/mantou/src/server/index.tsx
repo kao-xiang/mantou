@@ -228,7 +228,8 @@ export async function buildRoutes(
   
   for (const route of routes) {
     const routePath = route.path?.startsWith("/") ? route.path : `/${route.path}`;
-    if(resolver.pages.find(page => page.path === routePath)) {
+    const existingPage = resolver.pages.find(page => page.path === routePath);
+    if(existingPage || route.method === "get") {
       continue;
     }
     (app as any)[route.method](routePath, async (ctx: any) => {
