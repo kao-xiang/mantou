@@ -254,15 +254,17 @@ runs:
     if: steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' && inputs.dry-run != 'true'
     shell: bash
     run: |
-      # Checkout master branch
-      git fetch origin master
-      git checkout master
+      # Fetch the latest changes from master
+       git fetch origin master
 
-      # Merge develop into master
-      git merge origin/develop --no-ff -m "chore: release v${{ steps.version.outputs.new_version }} [skip ci]"
+       # Checkout master branch
+       git checkout master
 
-      # Push to master
-      git push origin master
+       # Merge develop into master
+       git merge origin/develop --no-ff -m "chore: release v${{ steps.version.outputs.new_version }} [skip ci]"
 
-      # Push the release tag to master
-      git push origin "v${{ steps.version.outputs.new_version}}"
+       # Push to master with force-with-lease (to handle conflicts)
+       git push origin master --force-with-lease
+
+       # Push the release tag to master
+       git push origin "v${{ steps.version.outputs.new_version}}"
