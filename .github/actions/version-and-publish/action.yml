@@ -254,8 +254,10 @@ runs:
     if: steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' && inputs.dry-run != 'true'
     shell: bash
     run: |
-      # Fetch the latest changes from master
-       git fetch origin master
+      # Checkout master branch
+      git fetch origin develop
+      git fetch origin master
+      git checkout master
 
        # Checkout master branch
        git checkout master
