@@ -1,7 +1,7 @@
 {
   "name": "create-mantou-app",
   "module": "./src/index.ts",
-  "version": "1.0.29",
+  "version": "1.0.30-canary.1",
   "publishConfig": {
     "access": "public",
     "tag": "latest",
