@@ -128,7 +128,7 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
 
   constructor(config: ServerOptions) {
     this.config = config;
-    this.appDir = upath.resolve(process.cwd(), config?.baseDir || "./src", config.appDir || "");
+    this.appPath = upath.resolve(process.cwd(), config?.baseDir || "./src", config.appDir || "");
     this.baseDir = upath.resolve(process.cwd(), config?.baseDir || "./src");
   }
 
@@ -413,7 +413,7 @@ else {
 
   private filePathToRoutePath(filePath: string): string {
     const parsedPath = upath.parse(filePath);
-    const relativePath = upath.relative(this.appDir, parsedPath.dir);
+    const relativePath = upath.relative(this.appPath, parsedPath.dir);
     return this.normalizePath(relativePath);
   }
 
@@ -511,17 +511,20 @@ else {
   }> {
     this.pathMap.clear();
 
+    const cwd = upath.resolve(this.baseDir, this.config.appDir || "");
     const files = await glob("**/*.{ts,js,tsx,jsx}", {
-      cwd: this.appDir,
-      ignore: ["**/*.d.ts", "**/*.test.ts", "**/*.spec.ts", "_*/**"],
+      cwd: upath.resolve(this.appPath),
+      ignore: ["**/*.d.ts", "**/*.test.ts", "**/*.spec.ts", "_*/**", "**/node_modules/**"],
     });
+
+    console.log(files);
 
     // Process middlewares first
     await Promise.all(
       files
         .filter((file) => file.includes("middleware."))
         .map((file) =>
-          this.processMiddleware(upath.resolve(this.appDir, file))
+          this.processMiddleware(upath.resolve(this.appPath, file))
         )
     );
 
@@ -531,7 +534,7 @@ else {
         .filter((file) => file.includes("route."))
         .map(async (file) => {
           const resolvedPath = this.filePathToRoutePath(
-            upath.resolve(this.appDir, file)
+            upath.resolve(this.appPath, file)
           );
 
           if (this.pathMap.has(resolvedPath)) {
@@ -543,7 +546,7 @@ else {
           }
 
           this.pathMap.set(resolvedPath, file);
-          await this.processRoute(upath.resolve(this.appDir, file));
+          await this.processRoute(upath.resolve(this.appPath, file));
         })
     );
 
@@ -551,14 +554,14 @@ else {
     await Promise.all(
       files
         .filter((file) => file.includes("layout."))
-        .map((file) => this.processLayout(upath.resolve(this.appDir, file)))
+        .map((file) => this.processLayout(upath.resolve(this.appPath, file)))
     );
 
     // Finally process pages
     await Promise.all(
       files
         .filter((file) => file.includes("page."))
-        .map((file) => this.processPage(upath.resolve(this.appDir, file)))
+        .map((file) => this.processPage(upath.resolve(this.appPath, file)))
     );
 
     // Merge pages into layouts
