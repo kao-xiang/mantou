@@ -44,7 +44,7 @@ export const loadConfig = async (
 
   const options = _.merge(__options, loaded, {
     baseDir:
-      tsconfig.compilerOptions.baseUrl || __options.baseDir || loaded.baseDir,
+    loaded.baseDir || tsconfig.compilerOptions.baseUrl || __options.baseDir,
   }) as ServerOptions;
 
   return options;
