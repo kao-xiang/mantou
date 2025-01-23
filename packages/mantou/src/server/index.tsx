@@ -148,7 +148,7 @@ export async function buildRoutes(
 
   });
 
-  console.log(resolver.pages, 'pages')
+  console.log(resolver.pages, 'pages testing')
 
   for(const page of resolver.pages) {
     app.get(page.path, async (ctx) => {
