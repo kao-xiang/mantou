@@ -116,7 +116,7 @@ const HTTP_METHODS: readonly HttpMethod[] = [
 
 // Route Resolution
 export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
-  private readonly appDir: string;
+  private readonly appPath: string;
   private readonly baseDir: string = process.cwd();
   private readonly pathMap = new Map<string, string>();
   public middlewares: MiddlewareConfig<M>[] = [];
@@ -517,7 +517,6 @@ else {
       ignore: ["**/*.d.ts", "**/*.test.ts", "**/*.spec.ts", "_*/**", "**/node_modules/**"],
     });
 
-    console.log(files);
 
     // Process middlewares first
     await Promise.all(
