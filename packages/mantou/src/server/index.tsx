@@ -14,7 +14,7 @@ import addFormats from "ajv-formats";
 import { staticPlugin } from '@elysiajs/static';
 import { glob } from "glob";
 import fs from 'fs/promises';
-import path, { resolve } from 'path';
+import upath, { resolve } from 'upath';
 
 let projectReact: typeof import('react')
 let projectReactDOMServer: typeof import('react-dom/server')
@@ -100,13 +100,13 @@ export async function buildRoutes(
 
   try{
     app.use(staticPlugin({
-      assets: path.resolve(process.cwd(), 'dist'),
+      assets: upath.resolve(process.cwd(), 'dist'),
       prefix: '/dist',
       alwaysStatic: true,
     }))
   
     app.use(staticPlugin({
-      assets: path.resolve(process.cwd(), 'public'),
+      assets: upath.resolve(process.cwd(), 'public'),
       prefix: '/public',
       alwaysStatic: true,
     }))
@@ -151,15 +151,15 @@ export async function buildRoutes(
   for(const page of resolver.pages) {
     app.get(page.path, async (ctx) => {
       try {
-        const ImportedApp = await import(path.resolve(config?.outputDir || "./dist", `App.tsx?imported=${Date.now()}`));
+        const ImportedApp = await import(upath.resolve(config?.outputDir || "./dist", `App.tsx?imported=${Date.now()}`));
         const Component = ImportedApp.default
   
         if(!projectReact || !projectReactDOMServer || !projectReactRouter) {
           await loadProjectReact(process.cwd());
         }
 
-        const layout = await import(path.resolve(resolver.getLayoutByPath(ctx.path)?.filePath + `?imported=${Date.now()}`)).then((layout) => layout).catch((e) => { console.error("Failed to load layout", e); return null; });
-        const page = await import(path.resolve(resolver.getPageByPath(ctx.path)?.filePath + `?imported=${Date.now()}`)).then((page) => page).catch((e) => { console.error("Failed to load page", e); return null; });
+        const layout = await import(upath.resolve(resolver.getLayoutByPath(ctx.path)?.filePath + `?imported=${Date.now()}`)).then((layout) => layout).catch((e) => { console.error("Failed to load layout", e); return null; });
+        const page = await import(upath.resolve(resolver.getPageByPath(ctx.path)?.filePath + `?imported=${Date.now()}`)).then((page) => page).catch((e) => { console.error("Failed to load page", e); return null; });
 
         const layoutMetadata = layout.metadata || {};
         const pageMetadata = page.metadata || {};
@@ -186,11 +186,11 @@ export async function buildRoutes(
           ),
         )
 
-        const csss = glob.sync(path.join(process.cwd(), 'dist', '*.css')).map((file) => {
-          return `<link rel="stylesheet" href="/dist/${path.basename(file)}" />`
+        const csss = glob.sync(upath.join(process.cwd(), 'dist', '*.css')).map((file) => {
+          return `<link rel="stylesheet" href="/dist/${upath.basename(file)}" />`
         }).join('\n')
 
-        const loadedHTML = await fs.readFile(path.resolve(process.cwd(), 'public/index.html'), 'utf-8')
+        const loadedHTML = await fs.readFile(upath.resolve(process.cwd(), 'public/index.html'), 'utf-8')
 
         const html = loadedHTML
         .replace("<!-- mantou_header -->", `
@@ -302,7 +302,7 @@ export async function buildRoutes(
 }
 
 export const startServer = async (_options: ServerOptions) => {
-  const options = await loadConfig(path.resolve(process.cwd() || "", 'mantou.config.ts'), _options)
+  const options = await loadConfig(upath.resolve(process.cwd() || "", 'mantou.config.ts'), _options)
   const app = new Elysia()
 
   const isSSL = options.ssl
