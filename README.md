@@ -102,7 +102,7 @@ See our [Contributing Guide](CONTRIBUTING.md) for more details.
 
 ## 📘 Documentation
 
-Visit [this](https://kao-xiang.github.io/mantou/) for full documentation.
+Visit [this](https://mantou.gitbook.io/docs) for full documentation.
 
 ## 💬 Community
 
