@@ -1,7 +1,7 @@
 import type { ServerOptions } from "@/types/server";
 import fs from "fs/promises";
 import _ from "lodash";
-import path from "path";
+import upath from "upath";
 
 const defaultOptions: ServerOptions = {
   isDev: true,
@@ -30,13 +30,13 @@ export const loadConfig = async (
   _options?: ServerOptions
 ) => {
   const __options = _.merge(defaultOptions, _options);
-  const loaded = await import(path.resolve(process.cwd(), configPath))
+  const loaded = await import(upath.resolve(process.cwd(), configPath))
     .then((config) => config.default || config)
     .catch((e) => {
       console.error("Failed to load config", e);
       return {};
     });
-  const tsconfig = await import(path.resolve(process.cwd(), "tsconfig.json"))
+  const tsconfig = await import(upath.resolve(process.cwd(), "tsconfig.json"))
     .then((config) => config.default || config)
     .catch((e) => {
       return {};
@@ -51,7 +51,7 @@ export const loadConfig = async (
 };
 
 export async function writeRecursive(filePath: string, content: string) {
-  const dir = path.dirname(filePath); // Extract directory from filePath
+  const dir = upath.dirname(filePath); // Extract directory from filePath
   await fs.mkdir(dir, { recursive: true }); // Create directories recursively
   await fs.writeFile(filePath, content); // Write the file
 

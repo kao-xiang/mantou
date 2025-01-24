@@ -326,7 +326,7 @@ export const startServer = async (_options: ServerOptions) => {
     port: options.port,
     hostname: options.host,
   }, () => {
-    logger.info(`🍞 Server started 2 on ${sslText}://${options.host}:${options.port}`)
+    logger.info(`🍞 Server started on ${sslText}://${options.host}:${options.port}`)
   })
 
   return app
