@@ -6,7 +6,6 @@ import { swagger } from '@elysiajs/swagger'
 import { logger } from '../lib/logger';
 import _ from 'lodash';
 import type { ServerOptions } from '@/types/server';
-import path, { resolve } from 'path';
 import { loadConfig } from '@/lib/fs';
 import cors from '@elysiajs/cors';
 import { RouteResolver } from '@/core/file-base-router';
@@ -15,7 +14,7 @@ import addFormats from "ajv-formats";
 import { staticPlugin } from '@elysiajs/static';
 import { glob } from "glob";
 import fs from 'fs/promises';
-import path from 'path';
+import path, { resolve } from 'path';
 
 let projectReact: typeof import('react')
 let projectReactDOMServer: typeof import('react-dom/server')

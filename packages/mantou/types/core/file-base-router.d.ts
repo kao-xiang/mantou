@@ -68,7 +68,7 @@ type Context<TConfig extends HandlerConfig> = BaseContext & {
 };
 type RouteHandlerFunction<TConfig extends HandlerConfig> = (ctx: Context<TConfig>) => Promise<any> | any;
 export declare class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
-    private readonly appDir;
+    private readonly appPath;
     private readonly baseDir;
     private readonly pathMap;
     middlewares: MiddlewareConfig<M>[];
