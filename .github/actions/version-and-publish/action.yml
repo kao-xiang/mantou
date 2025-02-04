@@ -191,7 +191,7 @@ runs:
         
         # Push changes using the GitHub token
         git remote set-url origin https://x-access-token:${{ inputs.github-token }}@github.com/${{ github.repository }}.git
-        git push origin ${{ github.ref_name }}
+        git push origin ${{ github.ref_name }} --force
       fi
 
   # Step 6: Git Operations
