@@ -21,7 +21,7 @@ runs:
     id: commits
     shell: bash
     run: |
-      git remote set-url origin https://${{ secrets.BOT_TOKEN }}@github.com/${{ github.repository }}.git
+      git remote set-url origin https://${{ $GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
       # Get commits since last tag
       COMMITS=$(git log --format="%B" $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD)
       # log the commits
@@ -140,7 +140,7 @@ runs:
         # Create branch protection
         curl -X PUT \
           -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization: token ${{ secrets.BOT_TOKEN }}" \
+          -H "Authorization: token ${{ $GITHUB_TOKEN }}" \
           "https://api.github.com/repos/${{ github.repository }}/branches/${BRANCH_NAME}/protection" \
           -d '{
             "required_status_checks": null,
@@ -244,7 +244,7 @@ runs:
     if: inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
     uses: ncipollo/release-action@v1
     with:
-      token: ${{ secrets.BOT_TOKEN }}
+      token: ${{ $GITHUB_TOKEN }}
       tag: v${{ steps.version.outputs.new_version }}
       name: v${{ steps.version.outputs.new_version }}
       bodyFile: CHANGELOG.md

@@ -49,4 +49,8 @@ jobs:
         uses: ./.github/actions/version-and-publish
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
-          github-token: ${{ secrets.BOT_TOKEN}}
+          github-token: ${{ secrets.BOT_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry-run }}
