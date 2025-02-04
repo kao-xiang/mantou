@@ -1,52 +1,246 @@
-name: Release
-permissions:
-  contents: write
-  packages: write
+name: Release Workflow
+
 on:
-  # For develop branch and version maintenance branches
   push:
     branches:
       - develop
-      - 'version-[0-9]+'
+      - 'version-*'
 
 jobs:
-  release:
+  version_publish_changelog:
     runs-on: ubuntu-latest
-    
-    permissions:
-      contents: write
-      packages: write
-    
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
         with:
-          fetch-depth: 0
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          registry-url: 'https://registry.npmjs.org'
-      
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-      
-      - name: Install Dependencies
-        run: bun install
-      
-      - name: Build
-        run: bun run build
-      
-      - name: Set Git User
+          node-version: '14'
+
+      - name: Get Commit Info
+        id: commits
+        shell: bash
         run: |
-          git config --global user.email ""
-          git config --global user.name "Mantou Bot"
-      
-      - name: Version and Publish
-        uses: ./.github/actions/version-and-publish
+          git remote set-url origin https://${{ secrets.BOT_TOKEN }}@github.com/${{ github.repository }}.git
+          # Get commits since last tag
+          COMMITS=$(git log --format="%B" $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD)
+          # log the commits
+          echo "$COMMITS"
+
+          # Check if all commits are non-release commits (e.g., doc:, chore:, ci:, etc.)
+          if echo "$COMMITS" | grep -qE "^(feat|fix|feat!|release)(\([^)]+\))?:" || echo "$COMMITS" | grep -q "BREAKING CHANGE"; then
+            echo "has_release_commits=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_release_commits=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Check if this is a release commit
+          if echo "$COMMITS" | grep -q "^release:"; then
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Check commit types for version bump
+          if echo "$COMMITS" | grep -qE "^(feat!)(\([^)]+\))?:" || echo "$COMMITS" | grep -q "BREAKING CHANGE"; then
+            echo "bump=major" >> $GITHUB_OUTPUT
+          elif echo "$COMMITS" | grep -qE "^(feat)(\([^)]+\))?:"; then
+            echo "bump=minor" >> $GITHUB_OUTPUT
+          elif echo "$COMMITS" | grep -qE "^(fix)(\([^)]+\))?:"; then
+            echo "bump=patch" >> $GITHUB_OUTPUT
+          else
+            # Treat all other commits (including invalid ones) as patch-level changes
+            echo "bump=patch" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Process Version
+        id: version
+        if: steps.commits.outputs.has_release_commits == 'true'
+        shell: bash
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+
+          # Function to increment version
+          increment_version() {
+            local version=$1
+            local bump_type=$2
+
+            if [ "$bump_type" = "major" ]; then
+              echo "$version" | awk -F. '{$1++; $2=0; $3=0; print $1"."$2"."$3}' OFS=.
+            elif [ "$bump_type" = "minor" ]; then
+              echo "$version" | awk -F. '{$2++; $3=0; print $1"."$2"."$3}' OFS=.
+            else
+              echo "$version" | awk -F. '{$3++; print $1"."$2"."$3}' OFS=.
+            fi
+          }
+
+          BRANCH="${{ github.ref_name }}"
+          IS_RELEASE="${{ steps.commits.outputs.is_release }}"
+
+          if [[ "$BRANCH" == "develop" ]]; then
+            if [[ "$IS_RELEASE" == "true" ]]; then
+              # If this is a release commit, remove the canary suffix
+              if [[ "$CURRENT_VERSION" =~ -canary\.[0-9]+$ ]]; then
+                NEW_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
+                NPM_TAG="latest"
+              else
+                # If no canary suffix, perform a conventional version bump
+                BUMP_TYPE="${{ steps.commits.outputs.bump }}"
+                NEW_VERSION=$(increment_version "$CURRENT_VERSION" "$BUMP_TYPE")
+                NPM_TAG="latest"
+              fi
+            else
+              # Handle non-release commits (canary logic)
+              if [[ "$CURRENT_VERSION" =~ -canary\.[0-9]+$ ]]; then
+                BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-canary\.[0-9]*$//')
+                CANARY_NUM=$(echo "$CURRENT_VERSION" | sed 's/.*-canary\.//')
+                NEW_CANARY=$((CANARY_NUM + 1))
+                NEW_VERSION="${BASE_VERSION}-canary.${NEW_CANARY}"
+                NPM_TAG="canary"
+              else
+                BUMP_TYPE="${{ steps.commits.outputs.bump }}"
+                NEW_BASE_VERSION=$(increment_version "$CURRENT_VERSION" "$BUMP_TYPE")
+                NEW_VERSION="${NEW_BASE_VERSION}-canary.1"
+                NPM_TAG="canary"
+              fi
+            fi
+
+          elif [[ "$BRANCH" =~ ^version-[0-9]+ ]]; then
+            # For version branches, increment patch or minor based on conventional commits
+            BUMP_TYPE="${{ steps.commits.outputs.bump }}"
+            if [ "$BUMP_TYPE" = "major" ]; then
+              echo "Major version bumps not allowed in version branches" >&2
+              exit 1
+            fi
+            NEW_VERSION=$(increment_version "$CURRENT_VERSION" "$BUMP_TYPE")
+            NPM_TAG="${BRANCH}-latest"
+          fi
+
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "npm_tag=$NPM_TAG" >> $GITHUB_OUTPUT
+          echo "is_release=$IS_RELEASE" >> $GITHUB_OUTPUT
+
+      - name: Create Version Branch
+        if: steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' && inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
+        shell: bash
+        run: |
+          VERSION=${{ steps.version.outputs.new_version }}
+          MAJOR_VERSION=$(echo "$VERSION" | cut -d. -f1)
+          PREV_MAJOR_VERSION=$((MAJOR_VERSION - 1))
+          BRANCH_NAME="version-${PREV_MAJOR_VERSION}"
+
+          # Check if the version branch already exists
+          if ! git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
+            # Create and push version branch
+            git checkout -b $BRANCH_NAME
+            git push origin $BRANCH_NAME
+
+            # Create branch protection
+            curl -X PUT \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${{ secrets.BOT_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/branches/${BRANCH_NAME}/protection" \
+              -d '{
+                "required_status_checks": null,
+                "enforce_admins": true,
+                "required_pull_request_reviews": {
+                  "required_approving_review_count": 1
+                },
+                "restrictions": null
+              }'
+          fi
+
+      - name: Update Package Versions
+        if: inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
+        shell: bash
+        run: |
+          NEW_VERSION=${{ steps.version.outputs.new_version }}
+
+          # Update package versions
+          if [ -f "package.json" ]; then
+            sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" package.json
+          fi
+
+          for pkg in packages/*; do
+            if [ -f "$pkg/package.json" ]; then
+              sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" $pkg/package.json
+            fi
+          done
+
+      - name: Generate Changelog
+        if: inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
+        shell: bash
+        run: |
+          # Install conventional-changelog-cli if not already installed
+          if ! command -v conventional-changelog &> /dev/null; then
+            npm install -g conventional-changelog-cli
+          fi
+
+          # Generate changelog
+          conventional-changelog -p angular -i CHANGELOG.md -s -k package.json
+
+          # Commit the changelog if it was updated
+          if git diff --exit-code CHANGELOG.md > /dev/null; then
+            echo "No changes to CHANGELOG.md"
+          else
+            git add CHANGELOG.md
+            git commit -m "docs: update changelog for v${{ steps.version.outputs.new_version }} [skip ci]"
+            
+            # Push changes using the GitHub token
+            git push origin ${{ github.ref_name }}
+          fi
+
+      - name: Git Operations
+        if: inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
+        shell: bash
+        run: |
+          NEW_VERSION=${{ steps.version.outputs.new_version }}
+          IS_RELEASE="${{ steps.version.outputs.is_release }}"
+
+          # Commit version updates
+          git add package.json packages/*/package.json
+          git commit -m "chore: update version to ${NEW_VERSION} [skip ci]"
+          git push origin ${{ github.ref_name }}
+
+          # Create version tag
+          git tag -a "v${NEW_VERSION}" -m "v${NEW_VERSION}"
+          git push origin "v${NEW_VERSION}"
+
+          # Update latest tags based on branch and release type
+          if [ "${{ github.ref_name }}" = "develop" ] && [ "$IS_RELEASE" = "true" ]; then
+            git tag -a "stable" -m "Latest stable release v${NEW_VERSION}" -f
+            git push origin stable -f
+          elif [[ "${{ github.ref_name }}" =~ ^version-[0-9]+ ]]; then
+            git tag -a "${{ github.ref_name }}-latest" -m "Latest ${{ github.ref_name }} release v${NEW_VERSION}" -f
+            git push origin "${{ github.ref_name }}-latest" -f
+
+      - name: Publish to NPM
+        if: inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
+        shell: bash
+        run: |
+          NPM_TAG=${{ steps.version.outputs.npm_tag }}
+
+          # Create NPM config
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
+
+          # Publish packages
+          for pkg in packages/*; do
+            if [ -f "$pkg/package.json" ]; then
+              cd $pkg
+              npm publish --tag $NPM_TAG --access public
+              cd ../..
+            fi
+          done
+
+      - name: Create GitHub Release
+        if: inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
+        uses: ncipollo/release-action@v1
         with:
-          npm-token: ${{ secrets.NPM_TOKEN }}
-          github-token: ${{ secrets.BOT_TOKEN}}
+          token: ${{ secrets.BOT_TOKEN }}
+          tag: v${{ steps.version.outputs.new_version }}
+          name: v${{ steps.version.outputs.new_version }}
+          bodyFile: CHANGELOG.md
+          generateReleaseNotes: false
+          prerelease: ${{ steps.version.outputs.is_release != 'true' && github.ref_name == 'develop' }}
+          makeLatest: ${{ steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' }}

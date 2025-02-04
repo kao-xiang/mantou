@@ -1,6 +1,5 @@
 // src/layout.tsx
 import type { GenerateMetadata } from 'mantou'
-import './index.css'
 
 export default function Layout({ children }: any) {
     return (
