@@ -21,7 +21,7 @@ runs:
     id: commits
     shell: bash
     run: |
-      git remote set-url origin https://${{ inputs.github-token }}@github.com/${{ github.repository }}.git
+      git remote set-url origin https://ppenter:${{ inputs.github-token }}@github.com/${{ github.repository }}.git
       # Get commits since last tag
       COMMITS=$(git log --format="%B" $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD)
       # log the commits
