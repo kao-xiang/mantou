@@ -1,5 +1,7 @@
 name: Release
-
+permissions:
+  contents: write
+  packages: write
 on:
   # For develop branch and version maintenance branches
   push:
@@ -40,11 +42,11 @@ jobs:
       
       - name: Set Git User
         run: |
-          git config --global user.email "jarupak.sri@gmail.com"
-          git config --global user.name "ppenter"
+          git config --global user.email ""
+          git config --global user.name "Mantou Bot"
       
       - name: Version and Publish
         uses: ./.github/actions/version-and-publish
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.BOT_TOKEN || secrets.GITHUB_TOKEN }}
