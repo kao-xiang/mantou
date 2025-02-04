@@ -21,6 +21,7 @@ runs:
     id: commits
     shell: bash
     run: |
+      git remote set-url origin https://x-access-token:${{ inputs.github-token }}@github.com/${{ github.repository }}.git
       # Get commits since last tag
       COMMITS=$(git log --format="%B" $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD)
       # log the commits
@@ -188,10 +189,9 @@ runs:
       else
         git add CHANGELOG.md
         git commit -m "docs: update changelog for v${{ steps.version.outputs.new_version }} [skip ci]"
-        echo "Using GitHub Token: ${{ inputs.github-token }}"
+        
         # Push changes using the GitHub token
-        git remote set-url origin https://x-access-token:${{ inputs.github-token }}@github.com/${{ github.repository }}.git
-        git push origin ${{ github.ref_name }} --force
+        git push origin ${{ github.ref_name }}
       fi
 
   # Step 6: Git Operations
