@@ -42,8 +42,8 @@ jobs:
       
       - name: Set Git User
         run: |
-          git config --global user.email ""
-          git config --global user.name "Mantou Bot"
+          git config --global user.email "jarupak.sri@gmail.com"
+          git config --global user.name "ppenter"
       
       - name: Version and Publish
         uses: ./.github/actions/version-and-publish
