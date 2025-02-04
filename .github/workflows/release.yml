@@ -18,6 +18,12 @@ jobs:
       packages: write
     
     steps:
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -42,11 +48,11 @@ jobs:
       
       - name: Set Git User
         run: |
-          git config --global user.email "jarupak.sri@gmail.com"
-          git config --global user.name "ppenter"
+          git config --global user.email ""
+          git config --global user.name "mantou-action-bot"
       
       - name: Version and Publish
         uses: ./.github/actions/version-and-publish
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
-          github-token: ${{ secrets.BOT_TOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
