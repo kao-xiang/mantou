@@ -16,13 +16,12 @@ inputs:
 runs:
   using: 'composite'
   steps:
+  # Step 1: Get Commit Info
   - name: Get Commit Info
-    env:
-      GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
     id: commits
     shell: bash
     run: |
-      git remote set-url origin https://${{ $GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+      git remote set-url origin https://${{ inputs.github-token }}@github.com/${{ github.repository }}.git
       # Get commits since last tag
       COMMITS=$(git log --format="%B" $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD)
       # log the commits
@@ -124,8 +123,6 @@ runs:
 
   # Step 3: Create Version Branch (for releases)
   - name: Create Version Branch
-    env:
-      GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
     if: steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' && inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
     shell: bash
     run: |
@@ -143,7 +140,7 @@ runs:
         # Create branch protection
         curl -X PUT \
           -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization: token ${{ $GITHUB_TOKEN }}" \
+          -H "Authorization: token ${{ inputs.github-token }}" \
           "https://api.github.com/repos/${{ github.repository }}/branches/${BRANCH_NAME}/protection" \
           -d '{
             "required_status_checks": null,
@@ -244,12 +241,10 @@ runs:
 
   # Step 8: Create GitHub Release
   - name: Create GitHub Release
-    env:
-      GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
     if: inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
     uses: ncipollo/release-action@v1
     with:
-      token: ${{ $GITHUB_TOKEN }}
+      token: ${{ inputs.github-token }}
       tag: v${{ steps.version.outputs.new_version }}
       name: v${{ steps.version.outputs.new_version }}
       bodyFile: CHANGELOG.md
