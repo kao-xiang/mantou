@@ -20,6 +20,13 @@ interface Route<TConfig extends HandlerConfig = any> {
     config: TConfig;
     guards: Guard[];
 }
+interface WsRoute<TConfig extends HandlerConfig = any> {
+    filePath: string;
+    path: string;
+    onMessage: RouteHandlerFunction<TConfig>;
+    config: TConfig;
+    guards: Guard[];
+}
 interface BasePath {
     filePath: string;
     path: string;
@@ -75,6 +82,7 @@ export declare class RouteResolver<M extends HandlerConfig, R extends HandlerCon
     routes: Route<R>[];
     pages: Page[];
     layouts: Layout[];
+    wsRoutes: WsRoute<R>[];
     pageLayouts: PageLayout[];
     config: ServerOptions;
     constructor(config: ServerOptions);
@@ -89,15 +97,28 @@ export declare class RouteResolver<M extends HandlerConfig, R extends HandlerCon
     private processRoute;
     private processPage;
     private processLayout;
+    private processWsRoute;
     resolveRoutes(): Promise<{
         middlewares: MiddlewareConfig[];
         routes: Route[];
         pages: Page[];
+        wsRoutes: WsRoute[];
         layouts: Layout[];
     }>;
+    matchParentOrDynamicPath(path: string, routePath: string): {
+        isMatch: boolean;
+        params: Record<string, string>;
+    };
+    matchParentPath(path: string, routePath: string): {
+        isMatch: boolean;
+        params: Record<string, string>;
+    };
+    private matchDynamicPath;
     getRouteByPath(path: string): Route | undefined;
-    getLayoutByPath(path: string): Layout | undefined;
+    getPathParams(path: string, routePath: string): Record<string, string>;
+    getLayoutsByPath(path: string): Layout[] | [];
     getPageByPath(path: string): Page | undefined;
+    getWsRouteByPath(path: string): WsRoute | undefined;
 }
 export declare function handler<TBody extends TSchema, TQuery extends TSchema, TParams extends TSchema>(fn: RouteHandlerFunction<{
     body: TBody;

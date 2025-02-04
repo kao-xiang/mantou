@@ -199,6 +199,12 @@ export async function buildRoutes(
 
         const loadedHTML = await fs.readFile(upath.resolve(process.cwd(), 'public/index.html'), 'utf-8')
 
+        const frontend_envs = Object.keys(process.env).filter((key) => key.startsWith('MANTOU_PUBLIC_')).reduce((acc, key) => {
+          const newKey = key
+          acc[newKey] = process.env[key]
+          return acc
+        } , {} as any)
+
         const html = loadedHTML
         .replace("<!-- mantou_header -->", `
           <title>${metadata.title || 'Mantou | Fullstack React Framework'}</title>
@@ -216,6 +222,11 @@ export async function buildRoutes(
             window.__INITIAL_DATA__ = ${JSON.stringify(data)}
             window.__INITIAL_PARAMS__ = ${JSON.stringify(params)}
             window.__INITIAL_QUERY__ = ${JSON.stringify(query)}
+            process = {}
+            process.env = {
+              ...process.env,
+              ...${JSON.stringify(frontend_envs)}
+            }
           </script>
           `)
 
