@@ -21,7 +21,7 @@ runs:
     id: commits
     shell: bash
     run: |
-      git remote set-url origin https://mantou-action-bot:${{ inputs.github-token }}@github.com/${{ github.repository }}.git
+      git remote set-url origin https://x-access-token:${{ inputs.github-token }}@github.com/${{ github.repository }}.git
       # echo owner of access token
       echo "owner: $(curl -s -H "Authorization: token ${{ inputs.github-token }}" https://api.github.com/user | jq -r .login)"
       # Get commits since last tag
