@@ -117,6 +117,7 @@ export async function buildRoutes(
 
   await loadProjectReact(process.cwd());
 
+
   app.onBeforeHandle(async (context) => {
     const middlewarePaths = middlewares.map((m) => m.path);
     const route = resolver.getRouteByPath(context.path);
@@ -145,7 +146,6 @@ export async function buildRoutes(
         await middleware.handler(context);
       }
     }
-
   });
 
   for(const page of resolver.pages) {
@@ -158,14 +158,21 @@ export async function buildRoutes(
           await loadProjectReact(process.cwd());
         }
 
-        const layout = await import(upath.resolve(resolver.getLayoutByPath(ctx.path)?.filePath + `?imported=${Date.now()}`)).then((layout) => layout).catch((e) => { console.error("Failed to load layout", e); return null; });
+        // const layouts = resolver.getLayoutByPath(ctx.path);
+        const _loaded_layouts = (await Promise.all(resolver.getLayoutsByPath(ctx.path)))
+        _loaded_layouts.sort((a, b) => a.path.split("/").length - b.path.split("/").length);
+        const _nearestLayout = _loaded_layouts[0];
+        const layouts = Promise.all(_loaded_layouts.map(async (layout) => {
+          return await import(layout.filePath + `?imported=${Date.now()}`).then((layout) => layout).catch((e) => { console.error("Failed to load layout", e); return null; });
+        }))
+        const layout = await import(_nearestLayout.filePath + `?imported=${Date.now()}`).then((layout) => layout).catch((e) => { console.error("Failed to load layout", e); return null; });
         const page = await import(upath.resolve(resolver.getPageByPath(ctx.path)?.filePath + `?imported=${Date.now()}`)).then((page) => page).catch((e) => { console.error("Failed to load page", e); return null; });
 
-        const layoutMetadata = layout.metadata || {};
-        const pageMetadata = page.metadata || {};
+        const layoutMetadata = layout?.metadata || {};
+        const pageMetadata = page?.metadata || {};
 
-        const layoutGenerateMetadata = layout.generateMetadata || (() => ({}));
-        const pageGenerateMetadata = page.generateMetadata || (() => ({}));
+        const layoutGenerateMetadata = layout?.generateMetadata || (() => ({}));
+        const pageGenerateMetadata = page?.generateMetadata || (() => ({}));
 
         const staticMetadata = _.merge({}, layoutMetadata, pageMetadata);
 
@@ -173,7 +180,7 @@ export async function buildRoutes(
 
         const metadata = _.merge({}, staticMetadata, dynamicMetadata);
 
-        const getServerSideData = page.getServerSideData || (() => ({}));
+        const getServerSideData = page?.getServerSideData || (() => ({}));
   
         const data = await getServerSideData(ctx);
         const params = ctx.params || {};
@@ -194,8 +201,8 @@ export async function buildRoutes(
 
         const html = loadedHTML
         .replace("<!-- mantou_header -->", `
-          <title>${metadata.title}</title>
-          <meta name="description" content="${metadata.description}">
+          <title>${metadata.title || 'Mantou | Fullstack React Framework'}</title>
+          <meta name="description" content="${metadata.description || 'Mantou is a fullstack React framework that makes building web applications a breeze.'}">
           ${Object.keys(metadata).map((key) => {
             if (key === "title" || key === "description") return "";
             return `<meta name="${key}" content="${metadata[key]}">`;
