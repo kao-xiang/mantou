@@ -16,8 +16,9 @@ inputs:
 runs:
   using: 'composite'
   steps:
-  # Step 1: Get Commit Info
   - name: Get Commit Info
+    env:
+      GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
     id: commits
     shell: bash
     run: |
@@ -123,6 +124,8 @@ runs:
 
   # Step 3: Create Version Branch (for releases)
   - name: Create Version Branch
+    env:
+      GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
     if: steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' && inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
     shell: bash
     run: |
@@ -241,6 +244,8 @@ runs:
 
   # Step 8: Create GitHub Release
   - name: Create GitHub Release
+    env:
+      GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
     if: inputs.dry-run != 'true' && steps.commits.outputs.has_release_commits == 'true'
     uses: ncipollo/release-action@v1
     with:
