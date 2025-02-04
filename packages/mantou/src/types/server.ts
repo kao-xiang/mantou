@@ -9,6 +9,7 @@ export interface ServerOptions<Path extends string = any> {
   middlewares?: any[];
   baseDir?: string;
   appDir?: string;
+  wsDir?: string;
   swagger?: ElysiaSwaggerConfig<Path> | false;
   configPath?: string;
   cors?: {

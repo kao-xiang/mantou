@@ -43,6 +43,14 @@ interface Route<TConfig extends HandlerConfig = any> {
   // routeData?: RouteData;
 }
 
+interface WsRoute<TConfig extends HandlerConfig = any> {
+  filePath: string;
+  path: string;
+  onMessage: RouteHandlerFunction<TConfig>;
+  config: TConfig;
+  guards: Guard[];
+}
+
 interface BasePath {
   filePath: string;
   path: string;
@@ -123,6 +131,7 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
   public routes: Route<R>[] = [];
   public pages: Page[] = [];
   public layouts: Layout[] = [];
+  public wsRoutes: WsRoute<R>[] = [];
   public pageLayouts: PageLayout[] = [];
   public config: ServerOptions = {};
 
@@ -503,10 +512,32 @@ else {
     });
   }
 
+  private async processWsRoute(file: string): Promise<void> {
+    const module = await import(file);
+    const routePath = this.filePathToRoutePath(file);
+
+    if (this.wsRoutes.find((route) => route.path === routePath)) {
+      return;
+    }
+
+    for (const method of HTTP_METHODS) {
+      if (method in module) {
+        this.wsRoutes.push({
+          filePath: file,
+          path: routePath,
+          onMessage: module.default?.handler,
+          config: module.default?.config,
+          guards: module.default?.guards ?? []
+        });
+      }
+    }
+  }
+
   async resolveRoutes(): Promise<{
     middlewares: MiddlewareConfig[];
     routes: Route[];
     pages: Page[];
+    wsRoutes: WsRoute[];
     layouts: Layout[];
   }> {
     this.pathMap.clear();
@@ -563,6 +594,13 @@ else {
         .map((file) => this.processPage(upath.resolve(this.appPath, file)))
     );
 
+    // Process ws routes
+    await Promise.all(
+      files
+        .filter((file) => file.includes("msg."))
+        .map((file) => this.processWsRoute(upath.resolve(this.appPath, file)))
+    );
+
     // Merge pages into layouts
     this.pageLayouts = await this.combinePageLayouts(this.layouts, this.pages);
 
@@ -581,24 +619,111 @@ else {
       routes: this.routes,
       pages: this.pages,
       layouts: this.layouts,
+      wsRoutes: this.wsRoutes,
     };
+  }
+
+  public matchParentOrDynamicPath(path: string, routePath: string): {
+    isMatch: boolean;
+    params: Record<string, string>;
+  } {
+    return this.matchParentPath(path, routePath) || this.matchDynamicPath(path, routePath);
+  }
+
+  public matchParentPath(path: string, routePath: string): {
+    isMatch: boolean;
+    params: Record<string, string>;
+  } {
+    // support :id and * in routePath
+    const pathParts = path.split("/");
+    const routeParts = routePath.split("/");
+    if(routePath === "/") {
+      return { isMatch: true, params: {} };
+    }
+    if (pathParts.length !== routeParts.length && !routePath.includes("*")) {
+      return { isMatch: false, params: {} };
+    }
+
+    const params: Record<string, string> = {};
+    for (let i = 0; i < pathParts.length; i++) {
+      if (pathParts[i] === routeParts[i]) {
+        continue;
+      }
+
+      if (routeParts[i].startsWith(":")) {
+        params[routeParts[i].slice(1)] = pathParts[i];
+        continue;
+      }
+
+      if (routeParts[i].startsWith("*")) {
+        params[routeParts[i].slice(1)] = pathParts.slice(i).join("/");
+        break;
+      }
+
+      return { isMatch: false, params: {} };
+    }
+
+    return { isMatch: true, params };
+  }
+
+  private matchDynamicPath(path: string, routePath: string): {
+    isMatch: boolean;
+    params: Record<string, string>;
+  } {
+    // support :id and * in routePath
+    const pathParts = path.split("/");
+    const routeParts = routePath.split("/");
+    if (pathParts.length !== routeParts.length && !routePath.includes("*")) {
+      return { isMatch: false, params: {} };
+    }
+
+    const params: Record<string, string> = {};
+    for (let i = 0; i < pathParts.length; i++) {
+      if (pathParts[i] === routeParts[i]) {
+        continue;
+      }
+
+      if (routeParts[i].startsWith(":")) {
+        params[routeParts[i].slice(1)] = pathParts[i];
+        continue;
+      }
+
+      if (routeParts[i].startsWith("*")) {
+        params[routeParts[i].slice(1)] = pathParts.slice(i).join("/");
+        break;
+      }
+
+      return { isMatch: false, params: {} };
+    }
+
+    return { isMatch: true, params };
   }
 
   public getRouteByPath(path: string): Route | undefined {
     return this.routes.find(
-      (route) => route.path === (path?.startsWith("/") ? path : `/${path}`)
+      (route) => this.matchDynamicPath(path, route.path).isMatch
     );
   }
 
-  public getLayoutByPath(path: string): Layout | undefined {
-    return this.layouts.find(
-      (layout) => layout.path === (path?.startsWith("/") ? path : `/${path}`)
-    );
+  public getPathParams(path: string, routePath: string): Record<string, string> {
+    return this.matchDynamicPath(path, routePath).params;
+  }
+
+  public getLayoutsByPath(path: string): Layout[] | [] {
+    return this.layouts.filter(
+      (layout) => this.matchParentOrDynamicPath(path, layout.path).isMatch
+    ) || [];
   }
 
   public getPageByPath(path: string): Page | undefined {
     return this.pages.find(
-      (page) => page.path === (path?.startsWith("/") ? path : `/${path}`)
+      (page) => this.matchDynamicPath(path, page.path).isMatch
+    );
+  }
+
+  public getWsRouteByPath(path: string): WsRoute | undefined {
+    return this.wsRoutes.find(
+      (route) => this.matchDynamicPath(path, route.path).isMatch
     );
   }
 }
