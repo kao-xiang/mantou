@@ -243,4 +243,4 @@ jobs:
           bodyFile: CHANGELOG.md
           generateReleaseNotes: false
           prerelease: ${{ steps.version.outputs.is_release != 'true' && github.ref_name == 'develop' }}
-          makeLatest: ${{ steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' }}
+          makeLatest: ${{ steps.version.outputs.is_release == 'true' && github.ref_name == 'develop' }} 
