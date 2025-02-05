@@ -20,16 +20,14 @@
     "@types/bun": "latest",
     "@types/fs-extra": "^11.0.4",
     "@types/prompts": "^2.4.9",
-    "mantou": "workspace:*"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  },
-  "dependencies": {
+    "mantou": "workspace:*",
     "commander": "^12.1.0",
     "fs-extra": "^11.2.0",
     "picocolors": "^1.1.1",
     "prompts": "^2.4.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
   },
   "homepage": "https://github.com/ppenter/mantou",
   "repository": {

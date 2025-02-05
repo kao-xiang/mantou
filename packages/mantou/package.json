@@ -4,7 +4,6 @@
   "version": "1.0.33-canary.6",
   "type": "module",
   "main": "index.tsx",
-  
   "exports": {
     ".": {
       "import": "./dist/index.tsx"
@@ -38,14 +37,7 @@
     "postcss-import": "^16.1.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "react-router": "^7.1.5"
-  },
-  "peerDependencies": {
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
-    "typescript": "^5.0.0"
-  },
-  "dependencies": {
+    "react-router": "^7.1.5",
     "@elysiajs/cors": "^1.2.0",
     "@elysiajs/static": "^1.2.0",
     "@elysiajs/swagger": "^1.2.0",
@@ -56,11 +48,17 @@
     "ajv-formats": "^3.0.1",
     "bun-lightningcss": "^0.2.0",
     "chokidar": "^4.0.3",
+    "commander": "^13.1.0",
     "concurrently": "^9.1.2",
     "consola": "^3.4.0",
     "dotenv": "^16.4.7",
     "elysia": "^1.2.12",
     "lodash": "^4.17.21",
     "upath": "^2.0.1"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "typescript": "^5.0.0"
   }
 }
