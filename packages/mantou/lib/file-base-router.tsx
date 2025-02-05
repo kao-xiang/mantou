@@ -103,9 +103,7 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
     if (!newPath.startsWith("/")) {
       newPath = `/${newPath}`;
     }
-  
-    // Ensure the path is in lowercase for consistency (especially on Windows)
-    newPath = newPath.toLowerCase();
+
   
     return newPath;
   }
