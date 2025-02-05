@@ -13,6 +13,7 @@
     "downlevelIteration": true,
     "skipLibCheck": true,
     "jsx": "preserve",
+    "jsxImportSource": "react",
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "allowJs": true,
