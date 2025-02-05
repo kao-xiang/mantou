@@ -18,39 +18,6 @@ import ReactDomServer from "react-dom/server";
 import React from "react";
 import { StaticRouter} from "mantou/router";
 
-// let projectReact: typeof import("react");
-// let projectReactDOMServer: typeof import("react-dom/server");
-// let projectReactRouter: any
-
-// async function loadProjectReact(projectPath: string) {
-//   try {
-//     // Load React from the project's node_modules
-//     const reactPath = resolve(projectPath, "node_modules/react");
-//     const reactDOMServerPath = resolve(
-//       projectPath,
-//       "node_modules/react-dom/server"
-//     );
-//     const reactRouterPath = resolve(projectPath, "node_modules/mantou/src/router");
-//     projectReact = await import(reactPath);
-//     projectReactDOMServer = await import(reactDOMServerPath);
-//     projectReactRouter = await import(reactRouterPath);
-
-//     // Make this React instance global
-//     (global as any).React = projectReact;
-//     (global as any).ReactDOMServer = projectReactDOMServer;
-//     (global as any).ReactRouter = projectReactRouter;
-
-//     return {
-//       React: projectReact,
-//       ReactDOMServer: projectReactDOMServer,
-//       ReactRouter: projectReactRouter,
-//     };
-//   } catch (error) {
-//     console.error("Failed to load project React:", error);
-//     throw error;
-//   }
-// }
-
 const ajv = addFormats(
   new Ajv({
     removeAdditional: true,
@@ -108,26 +75,6 @@ export async function buildRoutes(
   });
 
   await resolver.buildApp();
-
-  try {
-    app.use(
-      staticPlugin({
-        assets: upath.resolve(process.cwd(), "dist"),
-        prefix: "/dist",
-        alwaysStatic: true,
-      })
-    );
-
-    app.use(
-      staticPlugin({
-        assets: upath.resolve(process.cwd(), "public"),
-        prefix: "/public",
-        alwaysStatic: true,
-      })
-    );
-  } catch (e) {
-    console.log(e);
-  }
 
   // await loadProjectReact(process.cwd());
 
@@ -471,6 +418,26 @@ export const startServer = async (_options: ServerOptions) => {
       await plugin.afterBuild(options);
     }
   });
+
+  try {
+    app.use(
+      staticPlugin({
+        assets: upath.resolve(process.cwd(), "dist"),
+        prefix: "/dist",
+        alwaysStatic: true,
+      })
+    );
+
+    app.use(
+      staticPlugin({
+        assets: upath.resolve(process.cwd(), "public"),
+        prefix: "/public",
+        alwaysStatic: true,
+      })
+    );
+  } catch (e) {
+    console.log(e);
+  }
 
   app.listen(
     {
