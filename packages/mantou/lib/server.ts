@@ -220,7 +220,7 @@ export async function buildRoutes(
     const csss = glob
       .sync(upath.join(process.cwd(), "dist", "*.css"))
       .map((file) => {
-        return `<link rel="stylesheet" href="/dist/${upath.basename(file)}" />`;
+        return `<link rel="stylesheet" href="/dist/${upath.basename(file)}">`;
       })
       .join("\n");
 
@@ -420,23 +420,19 @@ export const startServer = async (_options: ServerOptions) => {
   });
 
   try {
-    app.get('/public/*', ({ params }) => file(`public/${params['*']}?imported=${Date.now()}`))
-    app.get('/dist/*', ({ params }) => file(`dist/${params['*']}?imported=${Date.now()}`))
-    // app.use(
-    //   staticPlugin({
-    //     assets: upath.resolve(process.cwd(), "dist"),
-    //     prefix: "/dist",
-    //     alwaysStatic: true,
-    //   })
-    // );
+    app.use(
+      staticPlugin({
+        assets: upath.resolve(process.cwd(), "dist"),
+        prefix: "/dist",
+      })
+    );
 
-    // app.use(
-    //   staticPlugin({
-    //     assets: upath.resolve(process.cwd(), "public"),
-    //     prefix: "/public",
-    //     alwaysStatic: true,
-    //   })
-    // );
+    app.use(
+      staticPlugin({
+        assets: upath.resolve(process.cwd(), "public"),
+        prefix: "/public",
+      })
+    );
   } catch (e) {
     console.log(e);
   }
