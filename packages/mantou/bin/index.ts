@@ -26,7 +26,7 @@ async function restartServer(options: { isDev?: boolean } = {}) {
       await currentServer.stop();
       currentServer = null;
     }else{
-      console.log(pc.blue("Starting new server instance..."));
+      // console.log(pc.blue("Starting new server instance..."));
     }
 
     
@@ -80,7 +80,7 @@ program
 
           if (path.includes("server") || path.endsWith(".ts")) {
             // Server-side changes
-            console.log(pc.blue("Restarting server..."));
+            // console.log(pc.blue("Restarting server..."));
             await restartServer({ isDev: true });
           }
 
