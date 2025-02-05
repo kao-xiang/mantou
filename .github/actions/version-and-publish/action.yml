@@ -201,7 +201,10 @@ runs:
     run: |
       NEW_VERSION=${{ steps.version.outputs.new_version }}
       IS_RELEASE="${{ steps.version.outputs.is_release }}"
-
+      # Fetch latest changes
+      git fetch --all
+      # Pull latest changes
+      git pull origin ${{ github.ref_name }}
       # Commit version updates
       git add package.json packages/*/package.json
       git commit -m "chore: update version to ${NEW_VERSION} [skip ci]"
