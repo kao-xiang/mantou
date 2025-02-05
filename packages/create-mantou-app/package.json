@@ -19,7 +19,8 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@types/fs-extra": "^11.0.4",
-    "@types/prompts": "^2.4.9"
+    "@types/prompts": "^2.4.9",
+    "mantou": "workspace:*"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"

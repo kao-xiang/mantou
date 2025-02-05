@@ -3,8 +3,8 @@ import { program } from "commander";
 import { watch } from "chokidar";
 import pc from "picocolors";
 import type Elysia from "elysia";
-import { startServer } from "@/server";
-import { buildApp } from "@/core/build";
+import { startServer } from "lib/server";
+import { buildApp } from "lib/config";
 
 let currentServer: Elysia | null = null;
 const liveReloadClients = new Set<WebSocket>();
@@ -75,7 +75,7 @@ program
         // if(['change'].includes(path)) {
         //   console.log(pc.blue(`File ${path}: ${path}`));
         // }
-        if (["change", "add"].includes(act)) {
+        if (["change", "add", "unlink"].includes(act)) {
           console.log(pc.blue(`File ${act}: ${path}`));
 
           if (path.includes("server") || path.endsWith(".ts")) {
@@ -84,7 +84,7 @@ program
             await restartServer({ isDev: true });
           }
 
-          if (path.includes("client") || path.endsWith(".tsx")) {
+          if (path.includes("client") || path.endsWith(".tsx") || path.endsWith(".css")) {
             // Client-side changes - rebuild and notify
             await restartServer({ isDev: true });
             notifyClientsToReload();

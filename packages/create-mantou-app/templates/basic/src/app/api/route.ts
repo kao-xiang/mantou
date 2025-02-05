@@ -1,4 +1,4 @@
-import { guard, handler, t, type Store } from 'mantou'
+import { guard, handler, o, type Store } from 'mantou/routes'
 
 const auth = (roles: string[]) => guard(async () => {
   console.log('Auth guard: ', roles);
@@ -8,8 +8,8 @@ const auth = (roles: string[]) => guard(async () => {
 export const post = handler((ctx) => {
   return `Hello World`
 }, {
- body: t.Object({
-    name: t.String()
+ body: o.Object({
+    name: o.String()
  })
 }, [
   auth(['buyer'])

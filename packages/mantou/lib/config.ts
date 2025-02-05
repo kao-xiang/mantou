@@ -1,7 +1,7 @@
-import type { ServerOptions } from "@/types/server";
-import fs from "fs/promises";
 import _ from "lodash";
+import type { ServerOptions } from "mantou/types";
 import upath from "upath";
+import { RouteResolver } from "./file-base-router";
 
 const defaultOptions: ServerOptions = {
   isDev: true,
@@ -50,10 +50,9 @@ export const loadConfig = async (
   return options;
 };
 
-export async function writeRecursive(filePath: string, content: string) {
-  const dir = upath.dirname(filePath); // Extract directory from filePath
-  await fs.mkdir(dir, { recursive: true }); // Create directories recursively
-  await fs.writeFile(filePath, content); // Write the file
-
-  return true;
+export const buildApp = async (_options: ServerOptions) => {
+    const options = _.merge(await loadConfig(), _options)
+    const router = new RouteResolver(options)
+    await router.buildApp()
+    return true
 }

@@ -1,65 +1,75 @@
 {
   "name": "mantou",
-  "version": "1.0.33-canary.1",
-  "publishConfig": {
-    "access": "public",
-    "tag": "latest",
-    "registry": "https://registry.npmjs.org/"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/ppenter/mantou.git"
-  },
-  "main": "./src/index.ts",
-  "module": "./src/index.ts",
-  "dependencies": {
-    "@elysiajs/cors": "^1.1.1",
-    "@elysiajs/static": "^1.2.0",
-    "@elysiajs/swagger": "^1.1.6",
-    "@types/lodash": "^4.17.13",
-    "@vitejs/plugin-react": "^4.3.4",
-    "ajv": "^8.17.1",
-    "ajv-formats": "^3.0.1",
-    "chokidar": "^4.0.2",
-    "commander": "^12.1.0",
-    "concurrently": "^9.1.0",
-    "consola": "^3.2.3",
-    "dotenv": "^16.4.7",
-    "elysia": "^1.1.26",
-    "loadash": "^1.0.0",
-    "picocolors": "^1.1.1",
-    "reflect-metadata": "^0.2.2",
-    "typescript": "^5.0.0",
-    "upath": "^2.0.1",
-    "vite": "^6.0.7"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "@types/react": "^19.0.3",
-    "@types/react-dom": "^19.0.2"
-  },
-  "bin": {
-    "mantou": "./src/cli/index.ts"
+  "module": "index.tsx",
+  "version": "1.0.33-canary.6",
+  "type": "module",
+  "main": "index.tsx",
+  "scripts": {
+    "build:hooks": "NODE_ENV=production bun build --target=bun ./src/hooks/index.ts --outfile=dist/hooks/index.js --external 'react-dom,react,react-router' --watch",
+    "build:providers": "NODE_ENV=production bun build --target=bun ./src/providers/index.ts --outfile=dist/providers/index.js --external 'react-dom,react,react-router' --watch",
+    "build:routes": "NODE_ENV=production bun build --target=bun ./src/routes/index.ts --outfile=dist/routes/index.js --external 'react-dom,react,react-router' --watch",
+    "build:router": "NODE_ENV=production bun build --target=bun ./src/router/index.ts --outfile=dist/router/index.js --external 'react-dom,react,react-router' --watch",
+    "build:plugins": "NODE_ENV=production bun build --target=bun ./src/plugins/index.ts --outfile=dist/plugins/index.js --external 'react-dom,react,react-router' --watch",
+    "build:types": "tsc --project tsconfig.types.json --watch",
+    "build:utils": "NODE_ENV=production bun build --target=bun ./src/utils/index.ts --outfile=dist/utils/index.js --external 'react-dom,react,react-router' --watch",
+    "dev": "concurrently -n hooks,providers,routes,router,plugins,utils -c blue,green,yellow,magenta,red,cyan 'bun run build:hooks' 'bun run build:providers' 'bun run build:routes' 'bun run build:router' 'bun run build:plugins' 'bun run build:utils'"
   },
   "exports": {
     ".": {
-      "import": "./src/index.ts"
+      "import": "./dist/index.tsx"
+    },
+    "./routes": {
+      "import": "./src/routes/index.ts"
+    },
+    "./translation": {
+      "import": "./src/translation/index.ts"
+    },
+    "./router": {
+      "import": "./src/router/index.ts"
+    },
+    "./plugins": {
+      "import": "./src/plugins/index.ts"
+    },
+    "./types": {
+      "import": "./src/types/index.ts"
+    },
+    "./utils": {
+      "import": "./src/utils/index.ts"
     }
   },
-  "homepage": "https://github.com/ppenter/mantou",
-  "scripts": {
-    "dev:lib": "bun build --target=bun ./src/index.ts --outfile=dist/index.js --watch --minify",
-    "dev:cli": "bun build --target=bun ./src/cli/index.ts --outfile=dist/cli/index.js --watch --minify",
-    "dev:types": "tsc --watch --project tsconfig.types.json",
-    "build:lib": "bun build --target=bun ./src/index.ts --outfile=dist/index.js --external 'react-dom,react,react-router'",
-    "build:cli": "bun build --target=bun ./src/cli/index.ts --outfile=dist/cli/index.js --external 'react-dom,react,react-router'",
-    "build:types": "tsc --project tsconfig.types.json",
-    "dev": "concurrently -n lib,cli,types -c blue,green,yellow,magenta 'bun run dev:lib' 'bun run dev:cli' 'bun run dev:types'",
-    "start": "bun ./src/index.ts",
-    "build": "bun run build:lib && bun run build:cli && bun run build:types",
-    "typecheck": "tsc --noEmit",
-    "publishing": "bun run build && bun publish",
-    "format": "prettier --write ."
+  "bin": {
+    "mantou": "./bin/index.ts"
   },
-  "type": "module"
+  "devDependencies": {
+    "@types/bun": "latest",
+    "papaparse": "^5.5.2",
+    "postcss": "^8.5.1",
+    "postcss-import": "^16.1.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router": "^7.1.5"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.2.0",
+    "@elysiajs/static": "^1.2.0",
+    "@elysiajs/swagger": "^1.2.0",
+    "@types/lodash": "^4.17.15",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "bun-lightningcss": "^0.2.0",
+    "chokidar": "^4.0.3",
+    "concurrently": "^9.1.2",
+    "consola": "^3.4.0",
+    "dotenv": "^16.4.7",
+    "elysia": "^1.2.12",
+    "lodash": "^4.17.21",
+    "upath": "^2.0.1"
+  }
 }

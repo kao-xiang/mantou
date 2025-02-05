@@ -1,6 +1,15 @@
 import type { ElysiaSwaggerConfig } from "@elysiajs/swagger";
 import type { HTTPHeaders } from "elysia/types";
 
+export interface MantouPlugin {
+    name: string;
+  
+    beforeBuild?: (config: ServerOptions) => void | Promise<void>;
+    afterBuild?: (config: ServerOptions) => void | Promise<void>;
+    beforeStart?: (config: ServerOptions) => void | Promise<void>;
+    afterStart?: (config: ServerOptions) => void | Promise<void>;
+  }
+
 export interface ServerOptions<Path extends string = any> {
   isDev?: boolean;
   port?: number;
@@ -17,6 +26,7 @@ export interface ServerOptions<Path extends string = any> {
   };
   outputDir?: string;
   apiPrefix?: string;
+  plugins?: MantouPlugin[];
 }
 
 export interface PageProps<
@@ -88,5 +98,5 @@ export interface ValidationResult {
 export interface ReactDependencies {
   React: typeof import("react");
   ReactDOMServer: typeof import("react-dom/server");
-  ReactRouter: typeof import("react-router");
+  ReactRouter: any
 }

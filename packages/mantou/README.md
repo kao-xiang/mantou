@@ -1,4 +1,15 @@
-# Mantou Package
+# mantou-core
 
-This is a package in the Mantou project. For more information, please visit the [Mantou GitHub repository](https://github.com/ppenter/mantou).
+To install dependencies:
 
+```bash
+bun install
+```
+
+To run:
+
+```bash
+bun run index.ts
+```
+
+This project was created using `bun init` in bun v1.1.45. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.

@@ -2,7 +2,7 @@
   "name": "mantou",
   "module": "index.ts",
   "type": "module",
-  "version": "1.0.33-canary.1",
+  "version": "1.0.33-canary.9",
   "private": true,
   "scripts": {
     "dev:mantou": "bun run --cwd packages/mantou dev",
@@ -16,19 +16,9 @@
   "workspaces": ["packages/*"],
   "devDependencies": {
     "@eslint/js": "^9.17.0",
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/commit-analyzer": "^13.0.1",
-    "@semantic-release/exec": "^6.0.3",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^11.0.1",
-    "@semantic-release/npm": "^12.0.1",
-    "@semantic-release/release-notes-generator": "^14.0.3",
-    "multi-semantic-release": "^3.0.2",
     "@types/bun": "latest",
     "globals": "^15.14.0",
     "rimraf": "^5.0.5",
-    "semantic-release": "^24.2.1",
-    "semantic-release-monorepo": "^8.0.2",
     "typescript": "^5.2.2",
     "typescript-eslint": "^8.18.1"
   },
@@ -37,9 +27,7 @@
   },
   "dependencies": {
     "consola": "^3.2.3",
-    "conventional-changelog-cli": "^5.0.0",
     "eslint": "^9.17.0",
-    "react-dom": "^19.0.0",
-    "react-router": "^7.1.1"
+    "glob": "^11.0.1"
   }
 }

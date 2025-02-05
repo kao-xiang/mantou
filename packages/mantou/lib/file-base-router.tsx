@@ -1,42 +1,21 @@
 import { Elysia, type Static, type TSchema } from "elysia";
 import { glob } from "glob";
 import upath from "upath";
-import type { ServerOptions } from "@/types/server";
 import fs from "fs/promises";
-import { writeRecursive } from "@/lib/fs";
-import type { HTTPHeaders } from "elysia/types";
-
-
-// Types
-type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
-type ContentType =
-  | "text"
-  | "json"
-  | "formdata"
-  | "urlencoded"
-  | "text/plain"
-  | "application/json"
-  | "multipart/form-data"
-  | "application/x-www-form-urlencoded";
+import type { HTTPHeaders, HTTPMethod } from "elysia/types";
+import lightningcss from 'bun-lightningcss'
+import type { BaseContext, ServerOptions } from "mantou/types";
+import { writeRecursive } from "mantou/utils";
+import type { Guard, HandlerConfig, RouteHandlerFunction } from "mantou/routes"
 
 interface MiddlewareContext extends BaseContext {
   app: Elysia;
 }
 
-interface HandlerConfig {
-  body?: TSchema;
-  query?: TSchema;
-  params?: TSchema;
-  response?: TSchema;
-  detail?: Record<string, any>;
-  type?: ContentType;
-  [key: string]: any;
-}
-
 interface Route<TConfig extends HandlerConfig = any> {
   filePath: string;
   path: string;
-  method: HttpMethod;
+  method: HTTPMethod;
   handler: RouteHandlerFunction<TConfig>;
   config: TConfig;
   guards: Guard[];
@@ -70,11 +49,6 @@ interface PageLayout {
   };
 }
 
-export interface Guard {
-  handler: RouteHandlerFunction<any>;
-  config?: HandlerConfig;
-}
-
 interface MiddlewareConfig<TConfig extends HandlerConfig = any> {
   filePath: string;
   path: string;
@@ -82,39 +56,10 @@ interface MiddlewareConfig<TConfig extends HandlerConfig = any> {
   guards: Guard[];
 }
 
-export interface Store {
-    [key: string]: any
-}
 
-export interface BaseContext {
-  request: Request;
-  path: string;
-  set: {
-    headers: HTTPHeaders
-    status?: number | string;
-    cookie?: Record<string, any>;
-  };
-  store: Store;
-  route: string;
-  headers?: Record<string, string | undefined>;
-}
-
-type Context<TConfig extends HandlerConfig> = BaseContext & {
-  body: TConfig["body"] extends TSchema ? Static<TConfig["body"]> : undefined;
-  query: TConfig["query"] extends TSchema
-    ? Static<TConfig["query"]>
-    : undefined;
-  params: TConfig["params"] extends TSchema
-    ? Static<TConfig["params"]>
-    : undefined;
-};
-
-type RouteHandlerFunction<TConfig extends HandlerConfig> = (
-  ctx: Context<TConfig>
-) => Promise<any> | any;
 
 // Constants
-const HTTP_METHODS: readonly HttpMethod[] = [
+const HTTP_METHODS: readonly HTTPMethod[] = [
   "get",
   "post",
   "put",
@@ -220,7 +165,7 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
     return combinedRoutes;
   }
 
-  public async buildApp() {
+  public async cleanOutputDir() {
     const outputDir = upath.resolve(
       process.cwd(),
       this.config.outputDir || "./dist"
@@ -228,6 +173,13 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
 
     // delete existing output directory
     await fs.rm(outputDir, { recursive: true, force: true });
+  }
+
+  public async buildApp() {
+    const outputDir = upath.resolve(
+      process.cwd(),
+      this.config.outputDir || "./dist"
+    );
     // const files = glob.sync("**/*.{ts,js,tsx,jsx}", {
     //   cwd: this.baseDir,
     //   ignore: ["**/*.d.ts", "**/*.test.ts", "**/*.spec.ts", "_*/**"],
@@ -236,7 +188,7 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
     await this.resolveRoutes();
 
     let appContent = `import React from 'react'\n`;
-    appContent += `import { Routes, Route, Outlet } from 'react-router'\n\n`;
+    appContent += `import { Routes, Route, Outlet } from 'mantou/router'\n\n`;
 
     // Get all unique imports and route data
     const uniqueImports = new Set<string>();
@@ -263,99 +215,38 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
       appContent += `import ${componentName} from '${filePath}'\n`;
     });
 
-    // Group routes by root layout
-    const groupRoutes = () => {
-      const groups = new Map<string, PageLayout[]>();
-
-      this.pageLayouts.forEach((route) => {
-        const rootLayout =
-          route.element.layouts?.[route.element.layouts.length - 1];
-        if (rootLayout) {
-          const group = this.getRouteGroup(rootLayout);
-          if (!groups.has(group)) {
-            groups.set(group, []);
-          }
-          groups.get(group)!.push(route);
-        }
-      });
-
-      return groups;
-    };
-
-    // Generate routes for a group
-    const generateGroupRoutes = (routes: PageLayout[]): string => {
-      if (routes.length === 0) return "";
-
-      const rootLayout =
-        routes[0].element.layouts?.[routes[0].element.layouts.length - 1];
-      if (!rootLayout) return "";
-
-      const rootLayoutComponent = importMap.get(rootLayout);
-      let jsxContent = `\n        <Route path="" element={<${rootLayoutComponent}><Outlet /></${rootLayoutComponent}>}>`;
-
-      const getNestedPath = (fullPath: string, parentPath: string) => {
-        if (fullPath === "/") return "";
-        return parentPath === "/"
-          ? fullPath.slice(1)
-          : fullPath.slice(parentPath.length + 1);
-      };
-
-      const addInitialData = (path: string) => {
-        return `data={data} params={params} query={query}`
-      };
-
-      routes.forEach((route) => {
-        const { page, layouts = [] } = route.element;
-        const pageComponent = importMap.get(page);
-
-        if (route.path === "/") {
-          jsxContent += `\n          <Route index element={<${pageComponent} ${addInitialData(
-            route.path
-          )} />} />`;
-        } else if (layouts.length === 1) {
-          jsxContent += `\n          <Route path="${route.path.slice(
-            1
-          )}" element={<${pageComponent} ${addInitialData(route.path)} />} />`;
+    function generateTsxRoute(path: string, layouts: string[], page: string): string {
+      // Generate the nested layout structure
+      let layoutStructure = '';
+      for (let i = layouts.length - 1; i >= 0; i--) {
+        if (i === layouts.length - 1) {
+          // Outer-most layout
+          layoutStructure = `<Route path="${path}" element={<${layouts[i]}><Outlet /></${layouts[i]}>}>${layoutStructure}</Route>`;
         } else {
-          let currentPath = "/";
-          for (let i = layouts.length - 2; i >= 0; i--) {
-            const layout = layouts[i];
-            const layoutComponent = importMap.get(layout);
-            const layoutPath = this.getPathFromLayout(layout);
-            const nestedPath = getNestedPath(layoutPath, currentPath);
-
-            if (i === 0) {
-              const finalPath = getNestedPath(route.path, layoutPath);
-              jsxContent += `\n          <Route path="${nestedPath}" element={<${layoutComponent} ${addInitialData(
-                route.path
-              )}><Outlet ${addInitialData(
-                route.path
-              )} /></${layoutComponent}>}>`;
-              jsxContent += `\n            <Route path="${finalPath}" element={<${pageComponent} ${addInitialData(
-                route.path
-              )} />} />`;
-              jsxContent += `\n          </Route>`;
-            } else {
-              jsxContent += `\n          <Route path="${nestedPath}" element={<${layoutComponent} ${addInitialData(
-                route.path
-              )}><Outlet ${addInitialData(
-                route.path
-              )} /></${layoutComponent}>}>`;
-            }
-            currentPath = layoutPath;
-          }
+          // Inner layouts
+          layoutStructure = `<Route path="" element={<${layouts[i]}><Outlet /></${layouts[i]}>}>${layoutStructure}</Route>`;
         }
-      });
+      }
+    
+      // Add the page as the index route
+      const pageRoute = `<Route index element={<${page} data={data} params={params} query={query} />} />`;
+      layoutStructure = layoutStructure.replace('</Route>', `${pageRoute}</Route>`);
+    
+      return layoutStructure;
+    }
 
-      jsxContent += "\n        </Route>";
-      return jsxContent;
-    };
+    let routes = []
+    for(let page of this.pages) {
+      const layouts = this.getLayoutsByPath(page.path);
+      const layoutComponents = layouts.map((layout) => importMap.get(layout.filePath) as string);
+      const pageComponent = importMap.get(page.filePath) as string;
+      routes.push(generateTsxRoute(page.path, layoutComponents, pageComponent));
+    }
 
-    const routeGroups = groupRoutes();
     let routesJSX = "";
-    routeGroups.forEach((routes) => {
-      routesJSX += generateGroupRoutes(routes);
-    });
+    for(let route of routes) {
+      routesJSX += route;
+    }
 
     appContent += `\nexport default function App({ data, params, query }: any) {
   return (
@@ -368,7 +259,7 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
 let indexContent = `
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router";
+import { BrowserRouter } from "mantou/router";
 import App from "./App";
 
 const initialData = typeof window !== "undefined" ? (window as any).__INITIAL_DATA__ : undefined;
@@ -409,6 +300,7 @@ else {
     await Bun.build({
       entrypoints: [upath.resolve(outputDir, "index.tsx")],
       outdir: upath.resolve(outputDir),
+      plugins: [lightningcss()],
     });
 
     await fs.unlink(upath.resolve(outputDir, "index.tsx"));
@@ -727,37 +619,3 @@ else {
     );
   }
 }
-
-// Helper Functions
-export function handler<
-  TBody extends TSchema,
-  TQuery extends TSchema,
-  TParams extends TSchema
->(
-  fn: RouteHandlerFunction<{
-    body: TBody;
-    query: TQuery;
-    params: TParams;
-  }>,
-  config?: {
-    body?: TBody;
-    query?: TQuery;
-    params?: TParams;
-    response?: TSchema;
-    detail?: Record<string, any>;
-    type?: ContentType;
-    [key: string]: any;
-  },
-  guards: Guard[] = []
-) {
-  return { handler: fn, config, guards };
-}
-
-export function guard<TConfig extends HandlerConfig>(
-  fn: RouteHandlerFunction<TConfig>,
-  config?: TConfig
-) {
-  return { handler: fn, config };
-}
-
-export type { HandlerConfig, Context, ContentType, RouteHandlerFunction };
