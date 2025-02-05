@@ -1,6 +1,6 @@
-import type { BaseContext } from "@/types";
 import { Elysia, type Static, type TSchema } from "elysia";
-import { t as o } from "elysia"
+import { t as o } from "elysia";
+import type { HTTPHeaders } from "elysia/types";
 
 type ContentType =
   | "text"
@@ -11,6 +11,19 @@ type ContentType =
   | "application/json"
   | "multipart/form-data"
   | "application/x-www-form-urlencoded";
+
+export interface BaseContext {
+  request: Request;
+  path: string;
+  set: {
+    headers: HTTPHeaders;
+    status?: number | string;
+    cookie?: Record<string, any>;
+  };
+  store: Store;
+  route: string;
+  headers?: Record<string, string | undefined>;
+}
 
 export interface Store {
   [key: string]: any;
@@ -76,4 +89,6 @@ export function guard<TConfig extends HandlerConfig>(
   return { handler: fn, config };
 }
 
-export { o }
+export type { TSchema, Static };
+
+export { o };
