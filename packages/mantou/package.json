@@ -1,7 +1,7 @@
 {
   "name": "mantou",
   "module": "index.tsx",
-  "version": "1.0.40",
+  "version": "1.0.41",
   "type": "module",
   "main": "index.tsx",
   "exports": {
