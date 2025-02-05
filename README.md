@@ -29,7 +29,7 @@ MANTOU (馒头) is a delightfully simple yet powerful web framework that brings 
 
 ```bash
 # Create your next amazing project
-bunx create-mantou-app my-app
+bun create mantou-app@latest
 
 # Jump into the action
 cd my-app

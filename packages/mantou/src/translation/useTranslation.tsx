@@ -211,4 +211,6 @@ import React, {
     return context;
   };
   
+  export const TestUI = () => (<>Test</>)
+
   export default TranslationProvider;

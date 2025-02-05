@@ -22,7 +22,6 @@
     "@types/prompts": "^2.4.9"
   },
   "dependencies": {
-    "mantou": "workspace:*",
     "commander": "^12.1.0",
     "fs-extra": "^11.2.0",
     "picocolors": "^1.1.1",
