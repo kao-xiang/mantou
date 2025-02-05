@@ -190,8 +190,9 @@ export async function buildRoutes(
     const params = ctx.params || {};
     const query = ctx.query || {};
 
-    const originalConsoleLog = console.log;
+    const originalConsole = console;
     console.log = () => {};
+    console.error = () => {};
 
     let content = "";
     try {
@@ -201,21 +202,15 @@ export async function buildRoutes(
           {
             location: ctx.path,
           },
-          // projectReact?.createElement(Component, { data, params, query })
+          React.createElement(Component, { data, params, query })
         )
       );
     } catch (e) {
-      originalConsoleLog(e);
+      // originalConsoleLog(e);
     } finally {
-      console.log = originalConsoleLog;
+      console.log = originalConsole.log;
+      console.error = originalConsole.error
     }
-
-    // const content = projectReactDOMServer?.renderToString(
-    //   projectReact?.createElement(projectReactRouter.StaticRouter, {
-    //     location: ctx.path,
-    //   }, projectReact?.createElement(Component, { data, params, query })
-    //   ),
-    // )
 
     const csss = glob
       .sync(upath.join(process.cwd(), "dist", "*.css"))
@@ -424,6 +419,7 @@ export const startServer = async (_options: ServerOptions) => {
       staticPlugin({
         assets: upath.resolve(process.cwd(), "dist"),
         prefix: "/dist",
+        noCache: true,
       })
     );
 
@@ -431,6 +427,7 @@ export const startServer = async (_options: ServerOptions) => {
       staticPlugin({
         assets: upath.resolve(process.cwd(), "public"),
         prefix: "/public",
+        noCache: true,
       })
     );
   } catch (e) {
