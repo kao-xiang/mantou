@@ -259,7 +259,7 @@ export async function buildRoutes(
       .replace(
         "<!--  mantou_script -->",
         `
-        <script src="/dist/index.js?a=${Date.now()}" type="module"></script>
+        <script src="/dist/index.js" type="module"></script>
         <script>
           window.__INITIAL_DATA__ = ${JSON.stringify(data)}
           window.__INITIAL_PARAMS__ = ${JSON.stringify(params)}
