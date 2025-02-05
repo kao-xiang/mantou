@@ -4,16 +4,7 @@
   "version": "1.0.33-canary.6",
   "type": "module",
   "main": "index.tsx",
-  "scripts": {
-    "build:hooks": "NODE_ENV=production bun build --target=bun ./src/hooks/index.ts --outfile=dist/hooks/index.js --external 'react-dom,react,react-router' --watch",
-    "build:providers": "NODE_ENV=production bun build --target=bun ./src/providers/index.ts --outfile=dist/providers/index.js --external 'react-dom,react,react-router' --watch",
-    "build:routes": "NODE_ENV=production bun build --target=bun ./src/routes/index.ts --outfile=dist/routes/index.js --external 'react-dom,react,react-router' --watch",
-    "build:router": "NODE_ENV=production bun build --target=bun ./src/router/index.ts --outfile=dist/router/index.js --external 'react-dom,react,react-router' --watch",
-    "build:plugins": "NODE_ENV=production bun build --target=bun ./src/plugins/index.ts --outfile=dist/plugins/index.js --external 'react-dom,react,react-router' --watch",
-    "build:types": "tsc --project tsconfig.types.json --watch",
-    "build:utils": "NODE_ENV=production bun build --target=bun ./src/utils/index.ts --outfile=dist/utils/index.js --external 'react-dom,react,react-router' --watch",
-    "dev": "concurrently -n hooks,providers,routes,router,plugins,utils -c blue,green,yellow,magenta,red,cyan 'bun run build:hooks' 'bun run build:providers' 'bun run build:routes' 'bun run build:router' 'bun run build:plugins' 'bun run build:utils'"
-  },
+  
   "exports": {
     ".": {
       "import": "./dist/index.tsx"
