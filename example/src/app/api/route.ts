@@ -1,17 +1,9 @@
-import { guard, handler, t, type Store } from 'mantou'
+import { handler, o } from "mantou/routes";
 
-const auth = (roles: string[]) => guard(async () => {
-  console.log('Auth guard: ', roles);
-  return true
-})
-
-export const post = handler((ctx) => {
-  return `Hello World`
+export const get = handler((ctx) => {
+  return `Hello, ${ctx.query.name}`
 }, {
- body: t.Object({
-    name: t.String()
- })
-}, [
-  auth(['buyer'])
-]
-)
+  query: o.Object({
+    name: o.String()
+  })
+})

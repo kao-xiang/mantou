@@ -1,5 +1,3 @@
-// src/layout.tsx
-import type { GenerateMetadata } from 'mantou'
 import './index.css'
 
 export default function Layout({ children }: any) {
@@ -8,11 +6,4 @@ export default function Layout({ children }: any) {
             {children}
         </div>
     )
-}
-
-export const generateMetadata: GenerateMetadata = () => {
-    return {
-        title: 'Mantou Example',
-        description: 'Mantou Example API',
-    }
 }

@@ -25,11 +25,10 @@ async function restartServer(options: { isDev?: boolean } = {}) {
     if (currentServer) {
       await currentServer.stop();
       currentServer = null;
-    }else{
+    } else {
       // console.log(pc.blue("Starting new server instance..."));
     }
 
-    
     currentServer = await startServer(options);
 
     if (options.isDev) {
@@ -54,54 +53,64 @@ program
   .command("dev")
   .description("Start development server with live reload")
   .action(async () => {
-    process.env.NODE_ENV = "development";
+    try {
+      process.env.NODE_ENV = "development";
 
-    // Initial build and server start
-    await restartServer({ isDev: true });
+      // Initial build and server start
+      await restartServer({ isDev: true });
 
-    // Watch for file changes
-    const watcher = watch("./src", {
-      ignored: /(^|[\/\\])\../, // Ignore dotfiles
-      persistent: true,
-      ignoreInitial: true,
-      awaitWriteFinish: {
-        stabilityThreshold: 100,
-        pollInterval: 100,
-      },
-    });
+      // Watch for file changes
+      const watcher = watch("./src", {
+        ignored: /(^|[\/\\])\../, // Ignore dotfiles
+        persistent: true,
+        ignoreInitial: true,
+        awaitWriteFinish: {
+          stabilityThreshold: 100,
+          pollInterval: 100,
+        },
+      });
 
-    watcher
-      .on("all", async (act, path) => {
-        // if(['change'].includes(path)) {
-        //   console.log(pc.blue(`File ${path}: ${path}`));
-        // }
-        if (["change", "add", "unlink"].includes(act)) {
-          console.log(pc.blue(`File ${act}: ${path}`));
+      watcher
+        .on("all", async (act, path) => {
+          // if(['change'].includes(path)) {
+          //   console.log(pc.blue(`File ${path}: ${path}`));
+          // }
+          if (["change", "add", "unlink"].includes(act)) {
+            console.log(pc.blue(`File ${act}: ${path}`));
 
-          if (path.includes("server") || path.endsWith(".ts")) {
-            // Server-side changes
-            // console.log(pc.blue("Restarting server..."));
-            await restartServer({ isDev: true });
+            if (path.includes("server") || path.endsWith(".ts")) {
+              // Server-side changes
+              // console.log(pc.blue("Restarting server..."));
+              await restartServer({ isDev: true });
+            }
+
+            if (
+              path.includes("client") ||
+              path.endsWith(".tsx") ||
+              path.endsWith(".css")
+            ) {
+              // Client-side changes - rebuild and notify
+              await restartServer({ isDev: true });
+              notifyClientsToReload();
+            }
           }
+        })
+        .on("error", (error) =>
+          console.error(pc.red(`Watcher error: ${error}`))
+        );
 
-          if (path.includes("client") || path.endsWith(".tsx") || path.endsWith(".css")) {
-            // Client-side changes - rebuild and notify
-            await restartServer({ isDev: true });
-            notifyClientsToReload();
-          }
+      // Handle graceful shutdown
+      process.on("SIGINT", async () => {
+        console.log(pc.yellow("\nGracefully shutting down..."));
+        if (currentServer) {
+          await currentServer.stop();
         }
-      })
-      .on("error", (error) => console.error(pc.red(`Watcher error: ${error}`)));
-
-    // Handle graceful shutdown
-    process.on("SIGINT", async () => {
-      console.log(pc.yellow("\nGracefully shutting down..."));
-      if (currentServer) {
-        await currentServer.stop();
-      }
-      await watcher.close();
-      process.exit(0);
-    });
+        await watcher.close();
+        process.exit(0);
+      });
+    } catch (error) {
+      console.log(error);
+    }
   });
 
 program

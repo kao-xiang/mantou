@@ -1,6 +1,7 @@
-import type { ServerOptions } from 'mantou'
+import type { ServerOptions } from "mantou/types"
 
 export default {
+  baseDir: 'src',
   swagger: {
     path: '/docs',
     documentation: {
@@ -21,5 +22,6 @@ export default {
         },
       },
     }
-  }
+  },
+  plugins: []
 } as ServerOptions

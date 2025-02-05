@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "baseUrl": "./src",
+    "baseUrl": ".",
     "lib": ["dom", "dom.iterable", "esnext"],
     "module": "esnext",
     "target": "esnext",
@@ -12,7 +12,7 @@
     "strict": true,
     "downlevelIteration": true,
     "skipLibCheck": true,
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     "jsxImportSource": "react",
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
@@ -20,7 +20,7 @@
     "verbatimModuleSyntax": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@/*": ["*"]
+      "@/*": ["src/*"]
     }
   }
 }
