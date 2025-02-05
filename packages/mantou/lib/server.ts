@@ -420,21 +420,23 @@ export const startServer = async (_options: ServerOptions) => {
   });
 
   try {
-    app.use(
-      staticPlugin({
-        assets: upath.resolve(process.cwd(), "dist"),
-        prefix: "/dist",
-        alwaysStatic: true,
-      })
-    );
+    app.get('/public/*', ({ params }) => file(`public/${params['*']}`))
+    app.get('/dist/*', ({ params }) => file(`dist/${params['*']}`))
+    // app.use(
+    //   staticPlugin({
+    //     assets: upath.resolve(process.cwd(), "dist"),
+    //     prefix: "/dist",
+    //     alwaysStatic: true,
+    //   })
+    // );
 
-    app.use(
-      staticPlugin({
-        assets: upath.resolve(process.cwd(), "public"),
-        prefix: "/public",
-        alwaysStatic: true,
-      })
-    );
+    // app.use(
+    //   staticPlugin({
+    //     assets: upath.resolve(process.cwd(), "public"),
+    //     prefix: "/public",
+    //     alwaysStatic: true,
+    //   })
+    // );
   } catch (e) {
     console.log(e);
   }
