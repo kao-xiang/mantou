@@ -420,8 +420,8 @@ export const startServer = async (_options: ServerOptions) => {
   });
 
   try {
-    app.get('/public/*', ({ params }) => file(`public/${params['*']}`))
-    app.get('/dist/*', ({ params }) => file(`dist/${params['*']}`))
+    app.get('/public/*', ({ params }) => file(`public/${params['*']}?imported=${Date.now()}`))
+    app.get('/dist/*', ({ params }) => file(`dist/${params['*']}?imported=${Date.now()}`))
     // app.use(
     //   staticPlugin({
     //     assets: upath.resolve(process.cwd(), "dist"),
