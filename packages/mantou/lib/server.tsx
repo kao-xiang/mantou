@@ -15,8 +15,11 @@ import upath, { resolve } from "upath";
 import { loadConfig } from "./config";
 import { RouteResolver } from "./file-base-router";
 import ReactDomServer from "react-dom/server";
-import React from "react";
-import { StaticRouter} from "mantou/router";
+import React, { type PropsWithChildren } from "react";
+import { StaticRouter } from "mantou/router";
+import postcss from "postcss";
+import path from "path";
+import { writeRecursive } from "@/utils";
 
 const ajv = addFormats(
   new Ajv({
@@ -76,52 +79,15 @@ export async function buildRoutes(
 
   await resolver.buildApp();
 
-  // await loadProjectReact(process.cwd());
-
-  app.onBeforeHandle(async (context) => {
-    const middlewarePaths = middlewares.map((m) => m.path);
-    const route = resolver.getRouteByPath(context.path);
-    const page = resolver.getPageByPath(context.path);
-    const hasPage = !!page || (route && context.request.method === "GET");
-    if (!route || hasPage) {
-      return;
-    }
-    const applicableMiddlewares = middlewarePaths.filter(
-      (path) =>
-        context.path.startsWith(path) && context.path.startsWith(route?.path)
-    );
-
-    if (applicableMiddlewares.length === 0) {
-      return;
-    }
-
-    const sortedMiddlewares = applicableMiddlewares.sort(
-      (a, b) => a.split("/").length - b.split("/").length
-    );
-
-    for (const middlewarePath of sortedMiddlewares) {
-      const middleware = middlewares.find((m) => m.path === middlewarePath);
-      const page = resolver.getPageByPath(context.path);
-      if (middleware) {
-        await middleware.handler(context);
-      }
-    }
-  });
-
   async function handlePage(ctx: any) {
     const ImportedApp = await import(
-      upath.resolve(
+      path.resolve(
         config?.outputDir || "./dist",
+        "client",
         `App.tsx?imported=${Date.now()}`
       )
     );
     const Component = ImportedApp.default;
-
-    // if (!projectReact || !projectReactDOMServer || !projectReactRouter) {
-    //   await loadProjectReact(process.cwd());
-    // }
-
-    // const layouts = resolver.getLayoutByPath(ctx.path);
     const _loaded_layouts = await Promise.all(
       resolver.getLayoutsByPath(ctx.path)
     );
@@ -140,7 +106,7 @@ export async function buildRoutes(
       })
     );
     const layout = await import(
-      _nearestLayout.filePath + `?imported=${Date.now()}`
+      _nearestLayout?.filePath + `?imported=${Date.now()}`
     )
       .then((layout) => layout)
       .catch((e) => {
@@ -158,18 +124,16 @@ export async function buildRoutes(
         return null;
       });
 
-    const getServerSideData = page?.getServerSideData || (() => ({}));
+    const pageGetServerSideData = page?.getServerSideData || (() => ({}));
+    const layoutGetServerSideData = layout?.getServerSideData || (() => ({}));
 
-    const data = await getServerSideData(ctx)
-      ?.then?.((data: any) => data)
-      .catch((e: any) => {
-        const type = e?.type;
-        if (type === "mantou/redirect") {
-          return { status: 404, message: "Not Found" };
-        }
-        console.error("Failed to load data", e);
-        return null;
-      });
+    const handleGetServerSideData = async (fn: any) => {
+      return await fn(ctx);
+    };
+    const layoutData = await handleGetServerSideData(layoutGetServerSideData);
+    const pageData = await handleGetServerSideData(pageGetServerSideData);
+
+    const data = _.merge({}, layoutData, pageData);
 
     const layoutMetadata = layout?.metadata || {};
     const pageMetadata = page?.metadata || {};
@@ -190,32 +154,48 @@ export async function buildRoutes(
     const params = ctx.params || {};
     const query = ctx.query || {};
 
-    const originalConsole = console;
-    console.log = () => {};
-    console.error = () => {};
+    const originalConsoleLog = console.log;
+    // console.log = () => {};
+
+    const HTMLShell = (props: PropsWithChildren) => {
+      return (
+        <html>
+          <head>
+            <div id="mantou-head"></div>
+          </head>
+          <body>
+            <div id="root">{props.children}</div>
+            <script src="/dist/client/index.js" type="module"></script>
+            <div id="mantou-script"></div>
+          </body>
+        </html>
+      );
+    };
 
     let content = "";
     try {
       content = ReactDomServer?.renderToString(
-        React?.createElement(
-          StaticRouter,
-          {
-            location: ctx.path,
-          },
-          React.createElement(Component, { data, params, query })
-        )
+        React.createElement(HTMLShell, {
+          children: React?.createElement(
+            StaticRouter,
+            {
+              location: ctx.path,
+            },
+            React.createElement(Component, { data, params, query })
+          ),
+        })
       );
     } catch (e) {
-      // originalConsoleLog(e);
+      console.log = originalConsoleLog;
+      originalConsoleLog(e);
     } finally {
-      console.log = originalConsole.log;
-      console.error = originalConsole.error
+      console.log = originalConsoleLog;
     }
 
     const csss = glob
-      .sync(upath.join(process.cwd(), "dist", "*.css"))
+      .sync(upath.join(process.cwd(), config?.outputDir, "client", "*.css"))
       .map((file) => {
-        return `<link rel="stylesheet" href="/dist/${upath.basename(file)}">`;
+        return `<link rel="stylesheet" href="/dist/client/${upath.basename(file)}">`;
       })
       .join("\n");
 
@@ -232,29 +212,24 @@ export async function buildRoutes(
         return acc;
       }, {} as any);
 
-    const html = loadedHTML
+    const html = content
       .replace(
-        "<!-- mantou_header -->",
+        `<div id="mantou-head"></div>`,
         `
-        <title>${metadata.title || "Mantou | Fullstack React Framework"}</title>
-        <meta name="description" content="${
-          metadata.description ||
-          "Mantou is a fullstack React framework that makes building web applications a breeze."
-        }">
-        ${Object.keys(metadata)
-          .map((key) => {
-            if (key === "title" || key === "description") return "";
-            return `<meta name="${key}" content="${metadata[key]}">`;
-          })
-          .join("\n")}
-        ${csss}
-      `
+      <title>${metadata.title || "Mantou | Fullstack Framework"}</title>
+          <meta name="description" content="${metadata.description || "Mantou is a fullstack framework powered by Bun"}">
+          ${Object.keys(metadata)
+            .map((key) => {
+              if (key === "title" || key === "description") return "";
+              return `<meta name="${key}" content="${metadata[key]}">`;
+            })
+            .join("\n")}
+            ${csss}
+          `
       )
-      .replace("<!-- mantou_root -->", content || "")
       .replace(
-        "<!--  mantou_script -->",
+        `<div id="mantou-script"></div>`,
         `
-        <script src="/dist/index.js" type="module"></script>
         <script>
           window.__INITIAL_DATA__ = ${JSON.stringify(data)}
           window.__INITIAL_PARAMS__ = ${JSON.stringify(params)}
@@ -291,12 +266,42 @@ export async function buildRoutes(
         }
       },
       {
+        beforeHandle: async (context: any) => {
+          let parentMiddlewares = resolver.getMiddlewaresByPath(
+            context.path,
+            "page"
+          );
+          parentMiddlewares.sort(
+            (a, b) => a.path.split("/").length - b.path.split("/").length
+          );
+          for (const middleware of parentMiddlewares) {
+            const guards = middleware.guards;
+            for (const guard of guards) {
+              for (const schemaType of ["body", "query", "params"] as const) {
+                const { valid, errors } = validateSchema(
+                  guard.config?.[schemaType],
+                  context[schemaType]
+                );
+
+                if (!valid) {
+                  throw {
+                    message: `${schemaType} validation failed for guard`,
+                    errors,
+                  };
+                }
+              }
+              await guard.handler(context);
+            }
+            await middleware.handler(context);
+          }
+        },
         detail: {
           hide: true,
         },
       }
     );
   }
+
   for (const route of routes) {
     const routePath = route.path?.startsWith("/")
       ? route.path
@@ -316,20 +321,15 @@ export async function buildRoutes(
       {
         beforeHandle: async (context: any) => {
           // Apply matching middlewares
-          const applicableMiddlewares = middlewares
-            .filter((middleware) => context.path.startsWith(middleware.path))
-            .sort(
-              (a, b) =>
-                a.filePath.split("/").length - b.filePath.split("/").length
-            );
-
-          const shortestPathLength =
-            applicableMiddlewares[0]?.filePath.split("/").length;
-          const closestMiddlewares = applicableMiddlewares.filter(
-            (m) => m.filePath.split("/").length === shortestPathLength
+          let parentMiddlewares = resolver.getMiddlewaresByPath(
+            context.path,
+            "routes"
+          );
+          parentMiddlewares.sort(
+            (a, b) => a.path.split("/").length - b.path.split("/").length
           );
 
-          for (const middleware of closestMiddlewares) {
+          for (const middleware of parentMiddlewares) {
             // applu middleware guards
             for (const guard of middleware.guards) {
               // Validate guard schemas
@@ -380,6 +380,80 @@ export async function buildRoutes(
   return app;
 }
 
+async function applyPostCSS() {
+  const postcssConfig = await import(
+    upath.resolve(process.cwd(), "postcss.config.js")
+  );
+  const plugins = postcssConfig.plugins;
+  const isArray = Array.isArray(plugins);
+  if (isArray) {
+    const cssFiles = glob.sync(
+      upath.resolve(process.cwd(), "src/**/*.{css,scss,sass}")
+    );
+    const cssContent = await Promise.all(
+      cssFiles.map(async (file) => {
+        const content = await fs.readFile(file, "utf-8");
+        const result = await postcss(plugins).process(content, {
+          from: file,
+        });
+        return result.css;
+      })
+    );
+
+    const outPath = upath.resolve(process.cwd(), "dist", "styles.css");
+    await fs.writeFile(outPath, cssContent.join("\n"));
+  } else {
+    const pluginNames = Object.keys(plugins);
+    const pluginParams = Object.values(plugins);
+    const cssFiles = glob.sync(
+      upath.resolve(process.cwd(), "src/**/global.{css,scss,sass}")
+    );
+    const cssContent = await Promise.all(
+      cssFiles.map(async (file) => {
+        const content = await fs.readFile(file, "utf-8");
+        const result = await postcss(
+          await Promise.all(
+            pluginNames.map(async (n) => {
+              return await import(
+                path.resolve(process.cwd(), "node_modules", n)
+              )
+                .then((plugin) => {
+                  return plugin.default(pluginParams[pluginNames.indexOf(n)]);
+                })
+                .catch(async (e) => {
+                  const json = JSON.parse(
+                    await fs.readFile(
+                      path.resolve(
+                        process.cwd(),
+                        "node_modules",
+                        n,
+                        "package.json"
+                      ),
+                      "utf-8"
+                    )
+                  );
+                  const entry = json.main || json.exports?.["."]?.import;
+                  return await import(
+                    path.resolve(process.cwd(), "node_modules", n, entry)
+                  ).then((plugin) => {
+                    return plugin.default(pluginParams[pluginNames.indexOf(n)]);
+                  });
+                });
+            })
+          )
+        ).process(content, {
+          from: file,
+        });
+
+        return result.css;
+      })
+    );
+
+    const outPath = path.resolve(process.cwd(), "dist", "styles", "global.css");
+    await writeRecursive(outPath, cssContent.join("\n"));
+  }
+}
+
 export const startServer = async (_options: ServerOptions) => {
   const options = await loadConfig(
     upath.resolve(process.cwd() || "", "mantou.config.ts"),
@@ -391,6 +465,7 @@ export const startServer = async (_options: ServerOptions) => {
   const sslText = isSSL ? "https" : "http";
 
   await buildRoutes(app, options);
+  // await applyPostCSS();
 
   if (options?.swagger) {
     logger.info(
