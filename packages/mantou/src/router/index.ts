@@ -1,5 +1,22 @@
 import { useRouter } from "./useRouter";
-import { Routes, Route, StaticRouter, Outlet, redirect, BrowserRouter } from "react-router"
+import {
+  Routes,
+  Route,
+  StaticRouter,
+  Outlet,
+  BrowserRouter,
+} from "react-router";
+
+const redirect = (to: string) => {
+  if (typeof window !== "undefined") {
+    window.location.href = to;
+  } else {
+    throw {
+      type: "mantou/redirect",
+      url: to,
+    };
+  }
+};
 
 export {
   Routes,
