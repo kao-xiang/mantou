@@ -3,10 +3,11 @@ import { glob } from "glob";
 import upath from "upath";
 import fs from "fs/promises";
 import type { HTTPHeaders, HTTPMethod } from "elysia/types";
-import lightningcss from 'bun-lightningcss'
+import lightningcss from "bun-lightningcss";
 import type { BaseContext, ServerOptions } from "mantou/types";
 import { writeRecursive } from "mantou/utils";
-import type { Guard, HandlerConfig, RouteHandlerFunction } from "mantou/routes"
+import type { Guard, HandlerConfig, RouteHandlerFunction } from "mantou/routes";
+import path from "path";
 
 interface MiddlewareContext extends BaseContext {
   app: Elysia;
@@ -56,8 +57,6 @@ interface MiddlewareConfig<TConfig extends HandlerConfig = any> {
   guards: Guard[];
 }
 
-
-
 // Constants
 const HTTP_METHODS: readonly HTTPMethod[] = [
   "get",
@@ -82,29 +81,32 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
 
   constructor(config: ServerOptions) {
     this.config = config;
-    this.appPath = upath.resolve(process.cwd(), config?.baseDir || "./src", config.appDir || "");
+    this.appPath = upath.resolve(
+      process.cwd(),
+      config?.baseDir || "./src",
+      config.appDir || ""
+    );
     this.baseDir = upath.resolve(process.cwd(), config?.baseDir || "./src");
   }
 
   private normalizePath(rawPath: string): string {
     let newPath =
       rawPath
-        .replace(/\\/g, "/")         // Normalize Windows backslashes to forward slashes
-        .replace(/\.ts$|\.js$/, "")   // Remove `.ts` and `.js` extensions
-        .replace(/\/index$/, "")      // Remove `/index`
-        .replace(/\/route$/, "")      // Remove `/route`
+        .replace(/\\/g, "/") // Normalize Windows backslashes to forward slashes
+        .replace(/\.ts$|\.js$/, "") // Remove `.ts` and `.js` extensions
+        .replace(/\/index$/, "") // Remove `/index`
+        .replace(/\/route$/, "") // Remove `/route`
         .replace(/\[\.{3}(.*?)\]/, ":$1*") // Handle spread parameters like `[...param]`
-        .replace(/\[(.*?)\]/g, ":$1")  // Handle dynamic parameters like `[param]`
-        .replace(/^\/+|\/+$/g, "")     // Remove leading/trailing slashes
-        .replace(/\((.*?)\)/g, "")      // Remove any parentheses (like in optional routes)
-        .replace(/\/+/g, "/")          // Replace multiple slashes with one
-        .replace(/\/$/, "") || "/";    // Remove trailing slashes, default to `/`
-  
+        .replace(/\[(.*?)\]/g, ":$1") // Handle dynamic parameters like `[param]`
+        .replace(/^\/+|\/+$/g, "") // Remove leading/trailing slashes
+        .replace(/\((.*?)\)/g, "") // Remove any parentheses (like in optional routes)
+        .replace(/\/+/g, "/") // Replace multiple slashes with one
+        .replace(/\/$/, "") || "/"; // Remove trailing slashes, default to `/`
+
     if (!newPath.startsWith("/")) {
       newPath = `/${newPath}`;
     }
 
-  
     return newPath;
   }
 
@@ -174,134 +176,160 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
   }
 
   public async buildApp() {
-    const outputDir = upath.resolve(
-      process.cwd(),
-      this.config.outputDir || "./dist"
-    );
-    // const files = glob.sync("**/*.{ts,js,tsx,jsx}", {
-    //   cwd: this.baseDir,
-    //   ignore: ["**/*.d.ts", "**/*.test.ts", "**/*.spec.ts", "_*/**"],
-    // });
+    try {
+      const outputDir = upath.resolve(
+        process.cwd(),
+        this.config.outputDir || "./dist",
+        "client"
+      );
+      // const files = glob.sync("**/*.{ts,js,tsx,jsx}", {
+      //   cwd: this.baseDir,
+      //   ignore: ["**/*.d.ts", "**/*.test.ts", "**/*.spec.ts", "_*/**"],
+      // });
 
-    await this.resolveRoutes();
+      await this.resolveRoutes();
 
-    let appContent = `import React from 'react'\n`;
-    appContent += `import { Routes, Route, Outlet } from 'mantou/router'\n\n`;
+      let appContent = `import React from 'react'\n`;
+      appContent += `import { Routes, Route, Outlet } from 'mantou/router'\n\n`;
 
-    // Get all unique imports and route data
-    const uniqueImports = new Set<string>();
-    const routeDataMap = new Map<string, string>();
+      // Get all unique imports and route data
+      const uniqueImports = new Set<string>();
+      const routeDataMap = new Map<string, string>();
 
-    this.pageLayouts.forEach((route) => {
-      uniqueImports.add(route.element.page);
-      route.element.layouts?.forEach((layout) => uniqueImports.add(layout));
+      this.pageLayouts.forEach((route) => {
+        uniqueImports.add(route.element.page);
+        route.element.layouts?.forEach((layout) => uniqueImports.add(layout));
 
-      // const matchingRoute = this.routes.find(
-      //   (r) => r.path === route.path && r.routeData
-      // );
-      // if (matchingRoute?.routeData) {
-      //   routeDataMap.set(route.path, matchingRoute.filePath);
-      // }
-    });
+        // const matchingRoute = this.routes.find(
+        //   (r) => r.path === route.path && r.routeData
+        // );
+        // if (matchingRoute?.routeData) {
+        //   routeDataMap.set(route.path, matchingRoute.filePath);
+        // }
+      });
 
-    // Generate imports and import map
-    const importMap = new Map<string, string>();
-    Array.from(uniqueImports).forEach((filePath, index) => {
-      const isLayout = filePath.includes("layout");
-      const componentName = isLayout ? `Layout${index}` : `Page${index}`;
-      importMap.set(filePath, componentName);
-      appContent += `import ${componentName} from '${filePath}'\n`;
-    });
+      // Generate imports and import map
+      const importMap = new Map<string, string>();
+      Array.from(uniqueImports).forEach((filePath, index) => {
+        const isLayout = filePath.includes("layout");
+        const componentName = isLayout ? `Layout${index}` : `Page${index}`;
+        importMap.set(filePath, componentName);
+        appContent += `import ${componentName} from '${filePath}'\n`;
+      });
 
-    function generateTsxRoute(path: string, layouts: string[], page: string): string {
-      // Generate the nested layout structure
-      let layoutStructure = '';
-      for (let i = layouts.length - 1; i >= 0; i--) {
-        if (i === layouts.length - 1) {
-          // Outer-most layout
-          layoutStructure = `<Route path="${path}" element={<${layouts[i]}><Outlet /></${layouts[i]}>}>${layoutStructure}</Route>`;
-        } else {
-          // Inner layouts
-          layoutStructure = `<Route path="" element={<${layouts[i]}><Outlet /></${layouts[i]}>}>${layoutStructure}</Route>`;
+      function generateTsxRoute(
+        path: string,
+        layouts: string[],
+        page: string
+      ): string {
+        // Generate the nested layout structure
+        let layoutStructure = "";
+        for (let i = layouts.length - 1; i >= 0; i--) {
+          if (i === layouts.length - 1) {
+            // Outer-most layout
+            layoutStructure = `<Route path="${path}" element={<${layouts[i]}><Outlet /></${layouts[i]}>}>${layoutStructure}</Route>`;
+          } else {
+            // Inner layouts
+            layoutStructure = `<Route path="" element={<${layouts[i]}><Outlet /></${layouts[i]}>}>${layoutStructure}</Route>`;
+          }
         }
+
+        // Add the page as the index route
+        const pageRoute = `<Route index element={<${page} data={data} params={params} query={query} />} />`;
+        layoutStructure = layoutStructure.replace(
+          "</Route>",
+          `${pageRoute}</Route>`
+        );
+
+        return layoutStructure;
       }
-    
-      // Add the page as the index route
-      const pageRoute = `<Route index element={<${page} data={data} params={params} query={query} />} />`;
-      layoutStructure = layoutStructure.replace('</Route>', `${pageRoute}</Route>`);
-    
-      return layoutStructure;
+
+      let routes = [];
+      for (let page of this.pages) {
+        const layouts = this.getLayoutsByPath(page.path);
+        const layoutComponents = layouts.map(
+          (layout) => importMap.get(layout.filePath) as string
+        );
+        const pageComponent = importMap.get(page.filePath) as string;
+        routes.push(
+          generateTsxRoute(page.path, layoutComponents, pageComponent)
+        );
+      }
+
+      let routesJSX = "";
+      for (let route of routes) {
+        routesJSX += route;
+      }
+
+      appContent += `\nexport default function App({ data, params, query }: any) {
+    return (
+      <Routes>${routesJSX}
+      </Routes>
+    )
+  }
+  `;
+
+      let indexContent = `
+      import React from "react";
+      import ReactDOM from "react-dom/client";
+      import { BrowserRouter } from "mantou/router";
+      import App from "./App";
+      
+      const initialData = typeof window !== "undefined" ? (window as any).__INITIAL_DATA__ : undefined;
+      const initialParams = typeof window !== "undefined" ? (window as any).__INITIAL_PARAMS__ : undefined;
+      const initialQuery = typeof window !== "undefined" ? (window as any).__INITIAL_QUERY__ : undefined;
+      const rootElement = document.getElementById("root");
+      
+      if (!rootElement) throw new Error("Root element not found");
+      
+      const AppWithRouter = () => (
+        <BrowserRouter>
+      <App data={initialData} params={initialParams} query={initialQuery} />
+        </BrowserRouter>
+      );
+      
+      // In development, set up live reload with reconnect support
+      if (process.env.NODE_ENV === "development") {
+        const connectWebSocket = () => {
+      const ws = new WebSocket(\`ws://\${window.location.host}/live-reload\`);
+      
+      ws.onmessage = (event) => {
+        if (event.data === 'reload') {
+          window.location.reload();
+        }
+      };
+      
+      ws.onclose = () => {
+        setTimeout(connectWebSocket, 100); // Reconnect after 1 second
+      };
+        };
+        
+        connectWebSocket();
+      
+        const root = ReactDOM.createRoot(rootElement);
+        root.render(<AppWithRouter />);
+      } 
+      // In production, hydrate for SSR
+      else {
+        ReactDOM.hydrateRoot(rootElement, <AppWithRouter />);
+      }
+      `;
+
+      await writeRecursive(upath.resolve(outputDir, "App.tsx"), appContent);
+      await writeRecursive(upath.resolve(outputDir, "index.tsx"), indexContent);
+
+      await Bun.build({
+        entrypoints: [upath.resolve(outputDir, "index.tsx")],
+        outdir: upath.resolve(outputDir),
+      }).then(() => { }).catch((e) => { console.error(e) });
+
+      // await fs
+      //   .unlink(upath.resolve(outputDir, "index.tsx"))
+      //   ?.then(() => {})
+      //   .catch(() => {});
+    } catch (e) {
+      console.error(e);
     }
-
-    let routes = []
-    for(let page of this.pages) {
-      const layouts = this.getLayoutsByPath(page.path);
-      const layoutComponents = layouts.map((layout) => importMap.get(layout.filePath) as string);
-      const pageComponent = importMap.get(page.filePath) as string;
-      routes.push(generateTsxRoute(page.path, layoutComponents, pageComponent));
-    }
-
-    let routesJSX = "";
-    for(let route of routes) {
-      routesJSX += route;
-    }
-
-    appContent += `\nexport default function App({ data, params, query }: any) {
-  return (
-    <Routes>${routesJSX}
-    </Routes>
-  )
-}
-`;
-
-let indexContent = `
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "mantou/router";
-import App from "./App";
-
-const initialData = typeof window !== "undefined" ? (window as any).__INITIAL_DATA__ : undefined;
-const initialParams = typeof window !== "undefined" ? (window as any).__INITIAL_PARAMS__ : undefined;
-const initialQuery = typeof window !== "undefined" ? (window as any).__INITIAL_QUERY__ : undefined;
-const rootElement = document.getElementById("root");
-
-if (!rootElement) throw new Error("Root element not found");
-
-const AppWithRouter = () => (
-  <BrowserRouter>
-    <App data={initialData} params={initialParams} query={initialQuery} />
-  </BrowserRouter>
-);
-
-// In development, set up live reload
-if (process.env.NODE_ENV === "development") {
-  const ws = new WebSocket(\`ws://\${window.location.host}/live-reload\`);
-  
-  ws.onmessage = (event) => {
-    if (event.data === 'reload') {
-      window.location.reload();
-    }
-  };
-
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(<AppWithRouter />);
-} 
-// In production, hydrate for SSR
-else {
-  ReactDOM.hydrateRoot(rootElement, <AppWithRouter />);
-}
-`;
-
-    await writeRecursive(upath.resolve(outputDir, "App.tsx"), appContent);
-    await writeRecursive(upath.resolve(outputDir, "index.tsx"), indexContent);
-
-    await Bun.build({
-      entrypoints: [upath.resolve(outputDir, "index.tsx")],
-      outdir: upath.resolve(outputDir),
-      plugins: [lightningcss()],
-    });
-
-    await fs.unlink(upath.resolve(outputDir, "index.tsx"));
   }
 
   private getPathFromLayout(layoutPath: string): string {
@@ -317,20 +345,22 @@ else {
   }
 
   private async processMiddleware(file: string): Promise<void> {
-    const module = await import(file);
-    if(this.middlewares.find((middleware) => middleware.filePath === file)) {
-      return
+    const module = await import(path.resolve(`${file}?imported=${Date.now()}`));
+    if (this.middlewares.find((middleware) => middleware.filePath === file)) {
+      return;
     }
     this.middlewares.push({
       filePath: file,
       path: this.filePathToRoutePath(file),
       handler: module.default.handler,
-      guards: module.default.guards ?? []
+      guards: module.default.guards ?? [],
     });
   }
 
   private async processRoute(file: string): Promise<void> {
-    const module = await import(upath.resolve(`${file}?imported=${Date.now()}`));
+    const module = await import(
+      upath.resolve(`${file}?imported=${Date.now()}`)
+    );
     const routePath = this.filePathToRoutePath(file);
 
     if (this.routes.find((route) => route.path === routePath)) {
@@ -348,7 +378,7 @@ else {
           method,
           handler: module[method]?.handler,
           config: module[method]?.config,
-          guards: module[method]?.guards ?? []
+          guards: module[method]?.guards ?? [],
         });
       }
     }
@@ -361,7 +391,7 @@ else {
         method: "get",
         handler: async () => ({}),
         config: {} as R,
-        guards: []
+        guards: [],
       });
     }
   }
@@ -403,7 +433,7 @@ else {
   }
 
   private async processWsRoute(file: string): Promise<void> {
-    const module = await import(file);
+    const module = await import(`${file}?imported=${Date.now()}`);
     const routePath = this.filePathToRoutePath(file);
 
     if (this.wsRoutes.find((route) => route.path === routePath)) {
@@ -417,7 +447,7 @@ else {
           path: routePath,
           onMessage: module.default?.handler,
           config: module.default?.config,
-          guards: module.default?.guards ?? []
+          guards: module.default?.guards ?? [],
         });
       }
     }
@@ -435,9 +465,14 @@ else {
     const cwd = upath.resolve(this.baseDir, this.config.appDir || "");
     const files = await glob("**/*.{ts,js,tsx,jsx}", {
       cwd: upath.resolve(this.appPath),
-      ignore: ["**/*.d.ts", "**/*.test.ts", "**/*.spec.ts", "_*/**", "**/node_modules/**"],
+      ignore: [
+        "**/*.d.ts",
+        "**/*.test.ts",
+        "**/*.spec.ts",
+        "_*/**",
+        "**/node_modules/**",
+      ],
     });
-
 
     // Process middlewares first
     await Promise.all(
@@ -513,21 +548,30 @@ else {
     };
   }
 
-  public matchParentOrDynamicPath(path: string, routePath: string): {
+  public matchParentOrDynamicPath(
+    path: string,
+    routePath: string
+  ): {
     isMatch: boolean;
     params: Record<string, string>;
   } {
-    return this.matchParentPath(path, routePath) || this.matchDynamicPath(path, routePath);
+    return (
+      this.matchParentPath(path, routePath) ||
+      this.matchDynamicPath(path, routePath)
+    );
   }
 
-  public matchParentPath(path: string, routePath: string): {
+  public matchParentPath(
+    path: string,
+    routePath: string
+  ): {
     isMatch: boolean;
     params: Record<string, string>;
   } {
     // support :id and * in routePath
     const pathParts = path.split("/");
     const routeParts = routePath.split("/");
-    if(routePath === "/") {
+    if (routePath === "/") {
       return { isMatch: true, params: {} };
     }
     if (pathParts.length !== routeParts.length && !routePath.includes("*")) {
@@ -556,7 +600,10 @@ else {
     return { isMatch: true, params };
   }
 
-  private matchDynamicPath(path: string, routePath: string): {
+  private matchDynamicPath(
+    path: string,
+    routePath: string
+  ): {
     isMatch: boolean;
     params: Record<string, string>;
   } {
@@ -595,14 +642,46 @@ else {
     );
   }
 
-  public getPathParams(path: string, routePath: string): Record<string, string> {
+  public getPathParams(
+    path: string,
+    routePath: string
+  ): Record<string, string> {
     return this.matchDynamicPath(path, routePath).params;
   }
 
   public getLayoutsByPath(path: string): Layout[] | [] {
-    return this.layouts.filter(
-      (layout) => this.matchParentOrDynamicPath(path, layout.path).isMatch
-    ) || [];
+    const pageFilePath = this.getPageByPath(path)?.filePath || "";
+    return this.layouts
+      .filter(
+        (layout) => this.matchParentOrDynamicPath(path, layout.path).isMatch
+      )
+      .filter((layout) => {
+        const isParent = pageFilePath
+          .replace("page.tsx", "")
+          .startsWith(layout.filePath.replace("layout.tsx", ""));
+        return isParent;
+      });
+  }
+
+  public getMiddlewaresByPath(
+    path: string,
+    type: "page" | "routes"
+  ): MiddlewareConfig[] {
+    const filePath =
+      type === "page"
+        ? this.getPageByPath(path)?.filePath
+        : this.getRouteByPath(path)?.filePath;
+    return this.middlewares
+      .filter(
+        (middleware) =>
+          this.matchParentOrDynamicPath(path, middleware.path).isMatch
+      )
+      .filter((middleware) => {
+        const isParent = filePath
+          ?.replace("page.tsx", "")
+          .startsWith(middleware.filePath.replace("middleware.tsx", ""));
+        return isParent;
+      });
   }
 
   public getPageByPath(path: string): Page | undefined {
