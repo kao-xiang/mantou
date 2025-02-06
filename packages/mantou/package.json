@@ -3,10 +3,10 @@
   "module": "index.tsx",
   "version": "1.0.43",
   "type": "module",
-  "main": "index.tsx",
+  "main": "./src/index.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.tsx"
+      "import": "./src/index.ts"
     },
     "./routes": {
       "import": "./src/routes/index.ts"
