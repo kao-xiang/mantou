@@ -25,6 +25,9 @@
     },
     "./utils": {
       "import": "./src/utils/index.ts"
+    },
+    "./action-form": {
+      "import": "./src/action-form/index.ts"
     }
   },
   "bin": {
@@ -44,15 +47,12 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "papaparse": "^5.5.2",
-    "postcss": "^8.5.1",
-    "postcss-import": "^16.1.0",
-    "react-router": "^7.1.5",
     "@elysiajs/cors": "^1.2.0",
     "@elysiajs/static": "^1.2.0",
     "@elysiajs/swagger": "^1.2.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
+    "axios": "^1.7.9",
     "bun-lightningcss": "^0.2.0",
     "chokidar": "^4.0.3",
     "commander": "^13.1.0",
@@ -61,6 +61,10 @@
     "dotenv": "^16.4.7",
     "elysia": "^1.2.12",
     "lodash": "^4.17.21",
+    "papaparse": "^5.5.2",
+    "postcss": "^8.5.1",
+    "postcss-import": "^16.1.0",
+    "react-router": "^7.1.5",
     "upath": "^2.0.1"
   }
 }

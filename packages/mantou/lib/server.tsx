@@ -95,16 +95,6 @@ export async function buildRoutes(
       (a, b) => a.path.split("/").length - b.path.split("/").length
     );
     const _nearestLayout = _loaded_layouts[0];
-    const layouts = Promise.all(
-      _loaded_layouts.map(async (layout) => {
-        return await import(layout.filePath + `?imported=${Date.now()}`)
-          .then((layout) => layout)
-          .catch((e) => {
-            console.error("Failed to load layout", e);
-            return null;
-          });
-      })
-    );
     const layout = await import(
       _nearestLayout?.filePath + `?imported=${Date.now()}`
     )
@@ -123,17 +113,32 @@ export async function buildRoutes(
         console.error("Failed to load page", e);
         return null;
       });
-
     const pageGetServerSideData = page?.getServerSideData || (() => ({}));
     const layoutGetServerSideData = layout?.getServerSideData || (() => ({}));
 
     const handleGetServerSideData = async (fn: any) => {
       return await fn(ctx);
     };
+    if(ctx.query?.__mantou_only_data){
+      if(!layoutGetServerSideData && !pageGetServerSideData){
+        return {}
+      }
+    }
     const layoutData = await handleGetServerSideData(layoutGetServerSideData);
     const pageData = await handleGetServerSideData(pageGetServerSideData);
 
     const data = _.merge({}, layoutData, pageData);
+
+    const params = ctx.params || {};
+    const search = ctx.query || {};
+
+    if(ctx.query?.__mantou_only_data){
+      return {
+        data,
+        params,
+        search
+      }
+    }
 
     const layoutMetadata = layout?.metadata || {};
     const pageMetadata = page?.metadata || {};
@@ -151,8 +156,8 @@ export async function buildRoutes(
 
     const metadata = _.merge({}, staticMetadata, dynamicMetadata);
 
-    const params = ctx.params || {};
-    const query = ctx.query || {};
+    // const params = ctx.params || {};
+    // const query = ctx.query || {};
 
     const originalConsoleLog = console.log;
     console.log = () => {};
@@ -182,7 +187,7 @@ export async function buildRoutes(
             {
               location: ctx.path,
             },
-            React.createElement(Component, { data, params, query })
+            React.createElement(Component, { data })
           ),
         })
       );
@@ -234,7 +239,7 @@ export async function buildRoutes(
         <script>
           window.__INITIAL_DATA__ = ${JSON.stringify(data)}
           window.__INITIAL_PARAMS__ = ${JSON.stringify(params)}
-          window.__INITIAL_QUERY__ = ${JSON.stringify(query)}
+          window.__INITIAL_SEARCH__ = ${JSON.stringify(search)}
           process = {}
           process.env = {
             ...process.env,

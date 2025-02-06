@@ -1,3 +1,4 @@
+import { redirect as elysiaRedirect } from "elysia";
 declare const window: any;
 
 export function redirect(props: {
@@ -7,10 +8,6 @@ export function redirect(props: {
     if (typeof window !== 'undefined' && window) {
         window.location.href = props.url;
     }else{
-        throw {
-            type: 'mantou/redirect',
-            url: props.url,
-            status: props.status || 302,
-        }
+        elysiaRedirect(props.url, 302);
     }
 }

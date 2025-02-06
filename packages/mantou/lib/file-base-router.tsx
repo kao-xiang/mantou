@@ -6,7 +6,7 @@ import type { HTTPHeaders, HTTPMethod } from "elysia/types";
 import lightningcss from "bun-lightningcss";
 import type { BaseContext, ServerOptions } from "mantou/types";
 import { writeRecursive } from "mantou/utils";
-import type { Guard, HandlerConfig, RouteHandlerFunction } from "mantou/routes";
+import type { GenerateMetadata, GetServerSideData, Guard, HandlerConfig, RouteHandlerFunction } from "mantou/routes";
 import path from "path";
 
 interface MiddlewareContext extends BaseContext {
@@ -36,7 +36,10 @@ interface BasePath {
   path: string;
 }
 
-interface Page extends BasePath {}
+interface Page extends BasePath {
+  getServerSideData?: GetServerSideData,
+  generateMetadata?: GenerateMetadata
+}
 
 interface Layout extends BasePath {
   children?: (Page | Layout)[];
@@ -190,7 +193,7 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
       await this.resolveRoutes();
 
       let appContent = `import React from 'react'\n`;
-      appContent += `import { Routes, Route, Outlet } from 'mantou/router'\n\n`;
+      appContent += `import { Routes, Route, Outlet, useRouter } from 'mantou/router'\n\n`;
 
       // Get all unique imports and route data
       const uniqueImports = new Set<string>();
@@ -235,7 +238,7 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
         }
 
         // Add the page as the index route
-        const pageRoute = `<Route index element={<${page} data={data} params={params} query={query} />} />`;
+        const pageRoute = `<Route index element={<${page} data={data} search={search} params={params} />} />`;
         layoutStructure = layoutStructure.replace(
           "</Route>",
           `${pageRoute}</Route>`
@@ -261,7 +264,27 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
         routesJSX += route;
       }
 
-      appContent += `\nexport default function App({ data, params, query }: any) {
+      appContent += `\nexport default function App({ data: _data, search: _search, params: _params }: any) {
+        const router = useRouter();
+        const [data, setData] = React.useState(_data);
+        const [search, setSearch] = React.useState(_search);
+        const [params, setParams] = React.useState(_params);
+
+        React.useEffect(() => {
+        const FETCH_AFTER_ROUTER = process?.env?.MANTOU_PUBLIC_FETCH_AFTER_ROUTER === "true";
+        if(FETCH_AFTER_ROUTER) {
+          fetch(router.pathname + "?__mantou_only_data=1").then((res) => res.json()).then((r) => {
+            setData(r.data);
+            setSearch(r.search);
+            setParams(r.params);
+          }).catch((e: any) => {});
+        }else{
+          setData(router?.state?.data);
+          setSearch(router?.state?.search);
+          setParams(router?.state?.params);
+        }
+          
+        }, [router.pathname]);
     return (
       <Routes>${routesJSX}
       </Routes>
@@ -277,14 +300,14 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
       
       const initialData = typeof window !== "undefined" ? (window as any).__INITIAL_DATA__ : undefined;
       const initialParams = typeof window !== "undefined" ? (window as any).__INITIAL_PARAMS__ : undefined;
-      const initialQuery = typeof window !== "undefined" ? (window as any).__INITIAL_QUERY__ : undefined;
+      const initialSearch = typeof window !== "undefined" ? (window as any).__INITIAL_SEARCH__ : undefined;
       const rootElement = document.getElementById("root");
       
       if (!rootElement) throw new Error("Root element not found");
       
       const AppWithRouter = () => (
         <BrowserRouter>
-      <App data={initialData} params={initialParams} query={initialQuery} />
+      <App data={initialData} search={initialSearch} params={initialParams} />
         </BrowserRouter>
       );
       
@@ -321,7 +344,11 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
       await Bun.build({
         entrypoints: [upath.resolve(outputDir, "index.tsx")],
         outdir: upath.resolve(outputDir),
-      }).then(() => { }).catch((e) => { console.error(e) });
+      })
+        .then(() => {})
+        .catch((e) => {
+          console.error(e);
+        });
 
       // await fs
       //   .unlink(upath.resolve(outputDir, "index.tsx"))

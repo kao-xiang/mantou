@@ -1,4 +1,4 @@
-import { Elysia, type Static, type TSchema } from "elysia";
+import { error, file, type Static, type TSchema } from "elysia";
 import { t as o } from "elysia";
 import type { HTTPHeaders } from "elysia/types";
 
@@ -73,7 +73,10 @@ export function handler<
     query?: TQuery;
     params?: TParams;
     response?: TSchema;
-    detail?: Record<string, any>;
+    detail?: {
+      tags: string[];
+      [key: string]: any;
+    };
     type?: ContentType;
     [key: string]: any;
   },
@@ -123,4 +126,4 @@ export type GenerateMetadata<
 
 export type { TSchema, Static };
 
-export { o };
+export { o, error, file };

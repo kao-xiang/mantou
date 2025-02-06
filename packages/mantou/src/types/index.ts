@@ -33,12 +33,12 @@ export interface PageProps<
   TProps extends {
     data?: any;
     params?: any;
-    query?: any;
+    search?: any;
   } = any
 > {
   data: TProps["data"];
   params: TProps["params"];
-  query: TProps["query"];
+  search: TProps["search"];
 }
 
 export interface Store {
