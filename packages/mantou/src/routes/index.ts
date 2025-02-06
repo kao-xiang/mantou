@@ -89,6 +89,38 @@ export function guard<TConfig extends HandlerConfig>(
   return { handler: fn, config };
 }
 
+export type GetServerSideData<
+  T extends {
+    data: any;
+    params?: any;
+    query?: any;
+  } = any
+> = (
+  context: {
+    data: T["data"];
+    params: T["params"];
+    query: T["query"];
+  } & BaseContext
+) => Promise<T["data"]> | T["data"];
+
+export interface MetaData {
+  title: string;
+  description: string;
+  image?: string;
+  url?: string;
+  [key: string]: any;
+}
+
+export type GenerateMetadata<
+  T extends {
+    params?: any;
+    query?: any;
+  } = {
+    params: any;
+    query: any;
+  }
+> = (context: T & BaseContext) => MetaData;
+
 export type { TSchema, Static };
 
 export { o };
