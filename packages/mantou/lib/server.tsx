@@ -200,10 +200,10 @@ export async function buildRoutes(
       })
       .join("\n");
 
-    const loadedHTML = await fs.readFile(
-      upath.resolve(process.cwd(), "public/index.html"),
-      "utf-8"
-    );
+    // const loadedHTML = await fs.readFile(
+    //   upath.resolve(process.cwd(), "public/index.html"),
+    //   "utf-8"
+    // );
 
     const frontend_envs = Object.keys(process.env)
       .filter((key) => key.startsWith("MANTOU_PUBLIC_"))
