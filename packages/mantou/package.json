@@ -1,7 +1,7 @@
 {
   "name": "mantou",
   "module": "index.tsx",
-  "version": "1.0.44-canary.2",
+  "version": "1.0.44-canary.3",
   "type": "module",
   "main": "./src/index.ts",
   "exports": {
