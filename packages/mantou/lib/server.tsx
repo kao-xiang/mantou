@@ -155,13 +155,14 @@ export async function buildRoutes(
     const query = ctx.query || {};
 
     const originalConsoleLog = console.log;
-    // console.log = () => {};
+    console.log = () => {};
 
     const HTMLShell = (props: PropsWithChildren) => {
       return (
         <html>
           <head>
             <div id="mantou-head"></div>
+            <link rel="stylesheet" href="/dist/styles/global.css" />
           </head>
           <body>
             <div id="root">{props.children}</div>
@@ -388,7 +389,7 @@ async function applyPostCSS() {
   const isArray = Array.isArray(plugins);
   if (isArray) {
     const cssFiles = glob.sync(
-      upath.resolve(process.cwd(), "src/**/*.{css,scss,sass}")
+      upath.resolve(process.cwd(), "src/**/global.{css,scss,sass}")
     );
     const cssContent = await Promise.all(
       cssFiles.map(async (file) => {
@@ -465,7 +466,7 @@ export const startServer = async (_options: ServerOptions) => {
   const sslText = isSSL ? "https" : "http";
 
   await buildRoutes(app, options);
-  // await applyPostCSS();
+  await applyPostCSS();
 
   if (options?.swagger) {
     logger.info(
