@@ -1,7 +1,10 @@
 import _ from "lodash";
-import type { ServerOptions } from "mantou/types";
-import upath from "upath";
+import type { PartialServerOptions, ServerOptions } from "mantou/types";
+import path from "path";
 import { RouteResolver } from "./file-base-router";
+import { deepMerge } from "@/utils";
+import { MantouBuilder } from "@/builder/builder";
+import Elysia from "elysia";
 
 const defaultOptions: ServerOptions = {
   isDev: true,
@@ -18,41 +21,35 @@ const defaultOptions: ServerOptions = {
       },
     },
   },
-  baseDir: "./src",
-  appDir: "./app",
+  appDir: "./src/app",
   configPath: "./mantou.config.ts",
   outputDir: "./dist",
-  apiPrefix: "/api",
+  apiPrefix: "/",
+  middlewares: [],
+  cors: { origin: ["*"] },
+  wsDir: "./ws",
+  plugins: [],
+  actionPath: "/_",
 };
 
 export const loadConfig = async (
-  configPath = "./mantou.config.ts",
-  _options?: ServerOptions
+  _options?: PartialServerOptions
 ) => {
-  const __options = _.merge(defaultOptions, _options);
-  const loaded = await import(upath.resolve(process.cwd(), configPath))
+  const __options =deepMerge(defaultOptions, _options);
+  const loaded = await import(path.resolve(process.cwd(), "mantou.config.ts"))
     .then((config) => config.default || config)
     .catch((e) => {
       console.error("Failed to load config", e);
       return {};
     });
-  const tsconfig = await import(upath.resolve(process.cwd(), "tsconfig.json"))
-    .then((config) => config.default || config)
-    .catch((e) => {
-      return {};
-    });
 
-  const options = _.merge(__options, loaded, {
-    baseDir:
-    loaded.baseDir || tsconfig.compilerOptions.baseUrl || __options.baseDir,
-  }) as ServerOptions;
-
-  return options;
+  return deepMerge(__options, loaded);
 };
 
-export const buildApp = async (_options: ServerOptions) => {
-    const options = _.merge(await loadConfig(), _options)
-    const router = new RouteResolver(options)
-    await router.buildApp()
-    return true
-}
+export const buildApp = async (_options: PartialServerOptions) => {
+  const options = deepMerge(await loadConfig(), _options);
+  const app = new Elysia()
+  const builder = new MantouBuilder(app, options);
+  await builder.build();
+  return true;
+};

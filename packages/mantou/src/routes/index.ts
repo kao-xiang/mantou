@@ -1,3 +1,4 @@
+import type { Action } from "@/builder/types";
 import { error, file, type Static, type TSchema } from "elysia";
 import { t as o } from "elysia";
 import type { HTTPHeaders } from "elysia/types";
@@ -92,6 +93,22 @@ export function guard<TConfig extends HandlerConfig>(
   return { handler: fn, config };
 }
 
+export function acts(namespace: string, actions: Record<string, {
+  handler: RouteHandlerFunction<any>;
+  config?: HandlerConfig;
+  guards?: Guard[];
+}>) {
+  let renamedActions: Record<string, {
+    handler: RouteHandlerFunction<any>;
+    config?: HandlerConfig;
+    guards?: Guard[];
+  }> = {};
+  for (const key in actions) {
+    renamedActions[`${namespace}_${key}`] = actions[key];
+  }
+  return renamedActions;
+}
+
 export type GetServerSideData<
   T extends {
     data: any;
@@ -122,7 +139,7 @@ export type GenerateMetadata<
     params: any;
     query: any;
   }
-> = (context: T & BaseContext) => MetaData;
+> = (context: T & Context<any>) => MetaData | Promise<MetaData>;
 
 export type { TSchema, Static };
 

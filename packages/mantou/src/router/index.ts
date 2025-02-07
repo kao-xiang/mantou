@@ -7,6 +7,7 @@ import {
   BrowserRouter,
   useBlocker,
   useBeforeUnload,
+  Link,
 } from "react-router";
 
 const redirect = (to: string) => {
@@ -29,5 +30,6 @@ export {
   BrowserRouter,
   useRouter,
   useBlocker,
-  useBeforeUnload
+  useBeforeUnload,
+  Link,
 };

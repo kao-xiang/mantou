@@ -1,15 +1,16 @@
+import type { Bunios } from "bunios";
 import { useActionForm } from "./action-form-provider";
-import axios, { Axios, type AxiosInstance } from "axios";
 
 export interface FormProps extends React.HTMLAttributes<HTMLFormElement> {
   onResponse?: (response: any) => void | Promise<void>;
   onError?: (error: any) => void | Promise<void>;
   method?: "GET" | "POST" | "PUT" | "DELETE";
+  task?: string;
 }
 
 export const ActionForm = (props: FormProps) => {
   const { onResponse: onPropsResponse, onError: onPropsError, ...rest } = props;
-  const { client, onError, onResponse } = useActionForm();
+  const { client, onError, onResponse, baseActionUrl } = useActionForm();
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
@@ -18,43 +19,48 @@ export const ActionForm = (props: FormProps) => {
     _data.forEach((value, key) => {
       data[key] = value;
     });
-    const method = form.method || "POST";
+    const method = form.method?.toLowerCase() || ("post" as any);
     //  not support get method
     if (method === "get") {
       throw new Error("get method is not supported");
     }
-    const url = form.action;
+    const url = `${baseActionUrl}`;
     try {
       if ((client as any)?.request) {
-        console.log("axios");
-        const response = await (client as Axios).request({
+        const response = await (client as Bunios).request({
           url,
           method,
-          data,
+          data: {
+            task: props.task,
+            payload: data,
+          },
         });
-        if (props.onResponse) {
-          await props.onResponse(response);
-        } else if (onResponse) {
+        if (onResponse) {
           await onResponse(response);
+        } else if (props.onResponse) {
+          await props.onResponse(response);
         }
         return;
       } else {
-        const response = await client(url, {
+        const response = await (client as Fetch)(url, {
           method,
-          body: _data,
+          body: JSON.stringify({
+            task: props.task,
+            payload: data,
+          }),
         });
-        if (props.onResponse) {
-          await props.onResponse(response);
-        } else if (onResponse) {
+        if (onResponse) {
           await onResponse(response);
+        } else if (props.onResponse) {
+          await props.onResponse(response);
         }
         return;
       }
     } catch (e) {
-      if (props.onError) {
-        await props.onError(e);
-      } else if (onError) {
+      if (onError) {
         await onError(e);
+      } else if (props.onError) {
+        await props.onError(e);
       }
       console.error(e);
     }

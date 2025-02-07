@@ -1,4 +1,4 @@
-import type { ServerOptions } from "mantou/types"
+import type { PartialServerOptions } from "mantou/types"
 
 export default {
   baseDir: 'src',
@@ -24,4 +24,4 @@ export default {
     }
   },
   plugins: []
-} as ServerOptions
+} as PartialServerOptions

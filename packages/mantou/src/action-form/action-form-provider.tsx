@@ -1,27 +1,30 @@
 import React, { createContext, type ReactNode, useContext } from 'react';
-import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
+import bunios, { type BuniosInstance, type BuniosResponse } from 'bunios';
 
 interface ActionFormProviderProps {
-    client?: AxiosInstance | ((input: RequestInfo | URL, init?: RequestInit | undefined) => Promise<Response>);
-    onResponse?: (response: Response | AxiosResponse) => void | Promise<void>;
+    client?: BuniosInstance | ((input: RequestInfo | URL, init?: RequestInit | undefined) => Promise<Response>);
+    onResponse?: (response: Response | BuniosResponse) => void | Promise<void>;
     onError?: (error: any) => void | Promise<void>;
+    baseActionUrl?: string;
     children: ReactNode;
 }
 
 interface ActionFormContext {
-    client: AxiosInstance | ((input: RequestInfo | URL, init?: RequestInit | undefined) => Promise<Response>);
-    onResponse?: (response: Response | AxiosResponse) => void | Promise<void>;
+    client: BuniosInstance | ((input: RequestInfo | URL, init?: RequestInit | undefined) => Promise<Response>);
+    onResponse?: (response: Response | BuniosResponse) => void | Promise<void>;
     onError?: (error: any) => void | Promise<void>;
+    baseActionUrl?: string;
 }
 
 const ActionFormContext = createContext<ActionFormContext | undefined>(undefined);
 
-export const ActionFormProvider: React.FC<ActionFormProviderProps> = ({ client = axios, onResponse, onError, children }) => {
+export const ActionFormProvider: React.FC<ActionFormProviderProps> = ({ client = bunios, onResponse, onError, children, baseActionUrl }) => {
     return (
         <ActionFormContext.Provider value={{
             client,
             onResponse,
             onError,
+            baseActionUrl,
         }}>
             {children}
         </ActionFormContext.Provider>

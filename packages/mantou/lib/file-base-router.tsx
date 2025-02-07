@@ -6,12 +6,15 @@ import type { HTTPHeaders, HTTPMethod } from "elysia/types";
 import lightningcss from "bun-lightningcss";
 import type { BaseContext, ServerOptions } from "mantou/types";
 import { writeRecursive } from "mantou/utils";
-import type { GenerateMetadata, GetServerSideData, Guard, HandlerConfig, RouteHandlerFunction } from "mantou/routes";
+import type {
+  Context,
+  GenerateMetadata,
+  GetServerSideData,
+  Guard,
+  HandlerConfig,
+  RouteHandlerFunction,
+} from "mantou/routes";
 import path from "path";
-
-interface MiddlewareContext extends BaseContext {
-  app: Elysia;
-}
 
 interface Route<TConfig extends HandlerConfig = any> {
   filePath: string;
@@ -37,8 +40,8 @@ interface BasePath {
 }
 
 interface Page extends BasePath {
-  getServerSideData?: GetServerSideData,
-  generateMetadata?: GenerateMetadata
+  getServerSideData?: GetServerSideData;
+  generateMetadata?: GenerateMetadata;
 }
 
 interface Layout extends BasePath {
@@ -80,16 +83,16 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
   public layouts: Layout[] = [];
   public wsRoutes: WsRoute<R>[] = [];
   public pageLayouts: PageLayout[] = [];
-  public config: ServerOptions = {};
+  public config: ServerOptions;
 
   constructor(config: ServerOptions) {
     this.config = config;
     this.appPath = upath.resolve(
       process.cwd(),
-      config?.baseDir || "./src",
+      config || "./src",
       config.appDir || ""
     );
-    this.baseDir = upath.resolve(process.cwd(), config?.baseDir || "./src");
+    // this.baseDir = upath.resolve(process.cwd(), config?.baseDir || "./src");
   }
 
   private normalizePath(rawPath: string): string {
@@ -708,7 +711,8 @@ export class RouteResolver<M extends HandlerConfig, R extends HandlerConfig> {
           ?.replace("page.tsx", "")
           .startsWith(middleware.filePath.replace("middleware.tsx", ""));
         return isParent;
-      });
+      })
+      .sort((a, b) => a.path.split("/").length - b.path.split("/").length);
   }
 
   public getPageByPath(path: string): Page | undefined {
