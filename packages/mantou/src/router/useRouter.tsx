@@ -26,7 +26,9 @@ export const useRouter = () => {
               },
             });
           })
-          .catch((e: any) => {})
+          .catch((e: any) => {
+            e.status === 404 && navigate("/404")
+          })
       : navigate(to);
   };
 
@@ -44,7 +46,9 @@ export const useRouter = () => {
               replace: true,
             });
           })
-          .catch((e: any) => {})
+          .catch((e: any) => {
+            e.status === 404 && navigate("/404")
+          })
       : navigate(to, { replace: true });
   };
   return {

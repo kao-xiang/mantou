@@ -8,6 +8,30 @@ import { loadConfig } from "./config";
 import { build } from "@/builder";
 import { applyPlugins, cleanOutputDir } from "./utils";
 
+const liveReloadClients = new Set<WebSocket>();
+
+function notifyClientsToReload() {
+  for (const client of liveReloadClients) {
+    try {
+      client.send("reload");
+    } catch (error) {
+      liveReloadClients.delete(client);
+    }
+  }
+}
+
+function startDevServer() {
+  global.__mantou_app.ws("/live-reload", {
+    open(ws: any) {
+      liveReloadClients.add(ws);
+    },
+    close(ws: any) {
+      liveReloadClients.delete(ws);
+    },
+  });
+  global.notifyClientsToReload = notifyClientsToReload;
+}
+
 export const startServer = async (_options?: PartialServerOptions) => {
   const __options = await loadConfig(_options);
   const _app = new Elysia();
@@ -31,6 +55,10 @@ export const startServer = async (_options?: PartialServerOptions) => {
   const sslText = isSSL ? "https" : "http";
 
   await applyPlugins("beforeStart");
+
+  if (global.__mantou_config.isDev) {
+    startDevServer();
+  }
 
   global.__mantou_app.listen(
     {

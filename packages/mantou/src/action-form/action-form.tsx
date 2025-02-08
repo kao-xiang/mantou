@@ -24,7 +24,7 @@ export const ActionForm = (props: FormProps) => {
     if (method === "get") {
       throw new Error("get method is not supported");
     }
-    const url = `${baseActionUrl}`;
+    const url = baseActionUrl || form.action || (typeof window !== "undefined" ? window.location.href : "");
     try {
       if ((client as any)?.request) {
         const response = await (client as Bunios).request({

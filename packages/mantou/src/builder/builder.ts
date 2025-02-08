@@ -167,88 +167,91 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
 
   public applyPages() {
     this.pages.forEach((page) => {
-      this.app.get(page.path, async (ctx: any) => {
-        let data = (await page.getServerSideData?.(ctx)) || {};
-        if (ctx.query?.__mantou_only_data) {
-          const query_no___mantou_only_data = _.omit(
-            ctx.query,
-            "__mantou_only_data"
-          );
-          return {
-            data: data,
-            params: ctx.params,
-            search: query_no___mantou_only_data,
-          };
-        }
-        await this._applyMiddlewares(page.path, "page", ctx);
-        const layouts = this.getLayoutsByPath(page.path);
-        const layout_metadatas = await Promise.all(
-          layouts.map(async (layout) => {
-            if (layout.generateMetadata) {
-              return await layout.generateMetadata(ctx);
-            }
-          })
-        );
-        const page_metadata = await page.generateMetadata?.(ctx);
-        const static_layout_metadatas = layout_metadatas.filter(
-          (metadata) => metadata !== undefined
-        );
-        const static_page_metadata = page.metadata;
-        const metadata = deepMerge(
-          {},
-          static_layout_metadatas,
-          ...layout_metadatas,
-          static_page_metadata,
-          page_metadata
-        );
-        const App = global.__mantou_App_tsx.default;
-
-        let content = "";
-        useNoLog(() => {
-          content = ReactDomServer?.renderToString(
-            React.createElement(HTMLShell, {
-              children: React?.createElement(
-                StaticRouter,
-                {
-                  location: ctx.path,
-                },
-                React.createElement(App, {
-                  data,
-                  search: ctx.query,
-                  params: ctx.params,
-                })
-              ),
+      this.app.get(
+        page.path,
+        async (ctx: any) => {
+          let data = (await page.getServerSideData?.(ctx)) || {};
+          if (ctx.query?.__mantou_only_data) {
+            const query_no___mantou_only_data = _.omit(
+              ctx.query,
+              "__mantou_only_data"
+            );
+            return {
+              data: data,
+              params: ctx.params,
+              search: query_no___mantou_only_data,
+            };
+          }
+          await this._applyMiddlewares(page.path, "page", ctx);
+          const layouts = this.getLayoutsByPath(page.path);
+          const layout_metadatas = await Promise.all(
+            layouts.map(async (layout) => {
+              if (layout.generateMetadata) {
+                return await layout.generateMetadata(ctx);
+              }
             })
           );
-        });
+          const page_metadata = await page.generateMetadata?.(ctx);
+          const static_layout_metadatas = layout_metadatas.filter(
+            (metadata) => metadata !== undefined
+          );
+          const static_page_metadata = page.metadata;
+          const metadata = deepMerge(
+            {},
+            static_layout_metadatas,
+            ...layout_metadatas,
+            static_page_metadata,
+            page_metadata
+          );
+          const App = global.__mantou_App_tsx.default;
 
-        const frontend_envs = Object.keys(process.env)
-          .filter((key) => key.startsWith("MANTOU_PUBLIC_"))
-          .reduce((acc, key) => {
-            const newKey = key;
-            acc[newKey] = process.env[key];
-            return acc;
-          }, {} as any);
+          let content = "";
+          useNoLog(() => {
+            content = ReactDomServer?.renderToString(
+              React.createElement(HTMLShell, {
+                children: React?.createElement(
+                  StaticRouter,
+                  {
+                    location: ctx.path,
+                  },
+                  React.createElement(App, {
+                    data,
+                    search: ctx.query,
+                    params: ctx.params,
+                  })
+                ),
+              })
+            );
+          });
 
-        const csss = glob
-          .sync(
-            upath.join(
-              process.cwd(),
-              global.__mantou_config?.outputDir,
-              "client",
-              "*.css"
+          const frontend_envs = Object.keys(process.env)
+            .filter((key) => key.startsWith("MANTOU_PUBLIC_"))
+            .reduce((acc, key) => {
+              const newKey = key;
+              acc[newKey] = process.env[key];
+              return acc;
+            }, {} as any);
+
+          const csss = glob
+            .sync(
+              upath.join(
+                process.cwd(),
+                global.__mantou_config?.outputDir,
+                "client",
+                "*.css"
+              )
             )
-          )
-          .map((file) => {
-            return `<link rel="stylesheet" href="/dist/client/${path.basename(
-              file
-            )}">`;
-          })
-          .join("\n");
-        const html = content
-          .replace(
-            `<div id="mantou-head"></div>`,
-            `
+            .map((file) => {
+              return `<link rel="stylesheet" href="/dist/client/${path.basename(
+                file
+              )}">`;
+            })
+            .join("\n");
+
+          const html = content
+            .replace(
+              `<div id="mantou-head"></div>`,
+              `
       <title>${metadata.title || "Mantou | Fullstack Framework"}</title>
           <meta name="description" content="${
             metadata.description ||
@@ -262,10 +265,10 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
             .join("\n")}
             ${csss}
           `
-          )
-          .replace(
-            `<div id="mantou-script"></div>`,
-            `
+            )
+            .replace(
+              `<div id="mantou-script"></div>`,
+              `
         <script>
           window.__INITIAL_DATA__ = ${JSON.stringify(data)}
           window.__INITIAL_PARAMS__ = ${JSON.stringify(ctx.params)}
@@ -277,16 +280,18 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
           }
         </script>
         `
-          );
+            );
 
-        return new Response(html, {
-          headers: { "Content-Type": "text/html" },
-        });
-      }, {
-        detail: {
-          hide: true,
+          return new Response(html, {
+            headers: { "Content-Type": "text/html" },
+          });
+        },
+        {
+          detail: {
+            hide: true,
+          },
         }
-      });
+      );
     });
   }
 
@@ -531,20 +536,21 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
 
   public matchParentOrDynamicPath(
     path: string,
-    routePath: string
+    routePath: string,
+    offset = 0
   ): {
     isMatch: boolean;
     params: Record<string, string>;
   } {
-    return (
-      this.matchParentPath(path, routePath) ||
-      this.matchDynamicPath(path, routePath)
-    );
+    return this.matchParentPath(path, routePath, offset).isMatch
+      ? this.matchParentPath(path, routePath, offset)
+      : this.matchDynamicPath(path, routePath);
   }
 
   public matchParentPath(
     path: string,
-    routePath: string
+    routePath: string,
+    offset = 0
   ): {
     isMatch: boolean;
     params: Record<string, string>;
@@ -555,29 +561,32 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
     if (routePath === "/") {
       return { isMatch: true, params: {} };
     }
-    if (pathParts.length !== routeParts.length && !routePath.includes("*")) {
+    if (
+      pathParts.length < routeParts.length + offset &&
+      !routePath.includes("*")
+    ) {
       return { isMatch: false, params: {} };
     }
-
     const params: Record<string, string> = {};
     for (let i = 0; i < pathParts.length; i++) {
+      if (routeParts[i] === undefined) {
+        break;
+      }
       if (pathParts[i] === routeParts[i]) {
         continue;
       }
 
-      if (routeParts[i].startsWith(":")) {
+      if (routeParts[i]?.startsWith(":")) {
         params[routeParts[i].slice(1)] = pathParts[i];
         continue;
       }
 
-      if (routeParts[i].startsWith("*")) {
+      if (routeParts[i]?.startsWith("*")) {
         params[routeParts[i].slice(1)] = pathParts.slice(i).join("/");
         break;
       }
-
       return { isMatch: false, params: {} };
     }
-
     return { isMatch: true, params };
   }
 
@@ -633,16 +642,14 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
   public getLayoutsByPath(path: string): Layout[] | [] {
     const pageFilePath = this.getPageByPath(path)?.filePath || "";
     return this.layouts
-      .filter(
-        (layout) => this.matchParentOrDynamicPath(path, layout.path).isMatch
-      )
+      .filter((layout) =>this.matchParentOrDynamicPath(path, layout.path, 1).isMatch)
       .filter((layout) => {
         const isParent = pageFilePath
           .replace("page.tsx", "")
           .startsWith(layout.filePath.replace("layout.tsx", ""));
         return isParent;
       })
-      .sort((a, b) => b.path.length - a.path.length);
+      .sort((a, b) => b.path.length + a.path.length);
   }
 
   public getMiddlewaresByPath(
@@ -663,7 +670,8 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
           ?.replace("page.tsx", "")
           .startsWith(middleware.filePath.replace("middleware.tsx", ""));
         return isParent;
-      });
+      })
+      .sort((a, b) => b.path.length + a.path.length);
   }
 
   public getPageByPath(path: string): Page | undefined {

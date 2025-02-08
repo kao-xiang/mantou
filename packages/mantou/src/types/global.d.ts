@@ -7,4 +7,5 @@ declare global {
     var __mantou_app: Elysia;
     var __mantou_App_tsx: any;
     var __mantou_organs: MantouBuilder
+    var notifyClientsToReload: () => void;
 }

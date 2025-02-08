@@ -9,12 +9,12 @@ function generateTsxRoute(
   let layoutStructure = "";
   for (let i = layouts.length - 1; i >= 0; i--) {
     if (i === layouts.length - 1) {
-      layoutStructure = `<Route path="${path}" element={<${layouts[i]}><Outlet /></${layouts[i]}>}>${layoutStructure}</Route>`;
+      layoutStructure = `<Route path="${path}" element={<${layouts[i]}><Outlet /></${layouts[i]}>}>\n${layoutStructure}</Route>\n`;
     } else {
-      layoutStructure = `<Route path="" element={<${layouts[i]}><Outlet /></${layouts[i]}>}>${layoutStructure}</Route>`;
+      layoutStructure = `<Route path="" element={<${layouts[i]}><Outlet /></${layouts[i]}>}>\n${layoutStructure}</Route>\n`;
     }
   }
-  const pageRoute = `<Route index element={<${page} data={data} search={search} params={params} />} />`;
+  const pageRoute = `<Route index element={<${page} data={data} search={search} params={params} />} />\n`;
   layoutStructure = layoutStructure.replace("</Route>", `${pageRoute}</Route>`);
 
   return layoutStructure;
@@ -30,13 +30,22 @@ export const content_templates = {
     content += "import React from 'react'\n";
     content += `import { Routes, Route, Outlet, useRouter } from 'mantou/router'\n\n`;
 
-    const uniqueImports = new Set<string>();
+    const uniqueImports = [] as string[]
     pageLayouts.forEach((route) => {
-      uniqueImports.add(route.element.page);
-      route.element.layouts?.forEach((layout) => uniqueImports.add(layout));
+      if(!uniqueImports.includes(route.element.page)) {
+        uniqueImports.push(route.element.page);
+      }
+      route.element.layouts?.forEach((layout) => {
+        if(!uniqueImports.includes(layout)) {
+          uniqueImports.push(layout);
+        }
+      });
     });
+    // sort unique imports
+    uniqueImports.sort((a, b) => a.split('/').length + b.split('/').length);
+
     const importMap = new Map<string, string>();
-    Array.from(uniqueImports).forEach((filePath, index) => {
+    uniqueImports.forEach((filePath, index) => {
       const isLayout = filePath.includes("layout");
       const componentName = isLayout ? `Layout${index}` : `Page${index}`;
       importMap.set(filePath, componentName);
@@ -104,24 +113,28 @@ export const content_templates = {
       
       const AppWithRouter = () => (
         <BrowserRouter>
-      <App data={initialData} search={initialSearch} params={initialParams} />
+          <App data={initialData} search={initialSearch} params={initialParams} />
         </BrowserRouter>
       );
       
       // In development, set up live reload with reconnect support
       if (process.env.NODE_ENV === "development") {
-        const connectWebSocket = () => {
-      const ws = new WebSocket(\`ws://\${window.location.host}/live-reload\`);
-      
-      ws.onmessage = (event) => {
-        if (event.data === 'reload') {
-          window.location.reload();
-        }
-      };
-      
-      ws.onclose = () => {
-        setTimeout(connectWebSocket, 100); // Reconnect after 1 second
-      };
+        const connectWebSocket = (maxReload = 5) => {
+          let reloadAttempts = 0;
+          const ws = new WebSocket(\`ws://\${window.location.host}/live-reload\`);
+          
+          ws.onmessage = (event) => {
+            if (event.data === 'reload') {
+              window.location.reload();
+            }
+          };
+          
+          ws.onclose = () => {
+            if (reloadAttempts < maxReload) {
+              reloadAttempts++;
+              setTimeout(() => connectWebSocket(maxReload), reloadAttempts * 1500); // Reconnect after 1.5s, 3s, 4.5s, 6s, 7.5s
+            }
+          };
         };
         
         connectWebSocket();
