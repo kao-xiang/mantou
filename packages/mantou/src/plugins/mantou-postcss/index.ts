@@ -8,7 +8,8 @@ import { writeRecursive } from "@/utils";
 const apply = async (config: ServerOptions) => {
   const postcssConfig = await import(
     path.resolve(process.cwd(), "postcss.config.js")
-  );
+  ).then((c) => c.default || c).catch((e) => {return undefined});
+  if(!postcssConfig) return;
   const plugins = postcssConfig.plugins;
   const isArray = Array.isArray(plugins);
   if (isArray) {
