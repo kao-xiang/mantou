@@ -1,7 +1,7 @@
 {
   "name": "create-mantou-app",
   "module": "./src/index.ts",
-  "version": "1.0.44",
+  "version": "1.0.45",
   "publishConfig": {
     "access": "public",
     "tag": "latest",
