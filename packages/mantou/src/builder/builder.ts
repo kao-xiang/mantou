@@ -1,18 +1,13 @@
 import React from "react";
 import ReactDomServer from "react-dom/server";
-import type {
-  GenerateMetadata,
-  GetServerSideData,
-  Guard,
-  HandlerConfig,
-  RouteHandlerFunction,
-} from "@/routes";
-import type { ServerOptions } from "@/types";
+import type { Context, ErrorPageProps, Handler, HandlerConfig, MetaData } from "@/routes";
+import type { ServerOptions } from "@/exports/types";
 import {
   deepMerge,
   dynamicImport,
   f,
   normalizePath,
+  removeFilenameFromPath,
   writeRecursive,
 } from "@/utils";
 import type { HTTPMethod } from "elysia";
@@ -24,7 +19,7 @@ import type {
   Action,
   BasePath,
   Layout,
-  Middleware,
+  TMiddleware,
   Page,
   PageLayout,
   Route,
@@ -33,8 +28,10 @@ import type {
 import { content_templates } from "./content";
 import _ from "lodash";
 import { applyPlugins, useNoLog } from "lib/utils";
-import { HTMLShell } from "./component";
+import { generateHtml, HTMLShell } from "./component";
 import { StaticRouter } from "react-router";
+import { ErrorPage } from "shell/ErrorPage";
+import { logger } from "lib/logger";
 // Constants
 const HTTP_METHODS: readonly HTTPMethod[] = [
   "get",
@@ -43,6 +40,8 @@ const HTTP_METHODS: readonly HTTPMethod[] = [
   "patch",
   "delete",
 ];
+
+type ErrorPage = Page<ErrorPageProps>
 
 export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
   private app: Elysia;
@@ -53,8 +52,11 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
   public routes: Route<R>[] = [];
   public actions: Action[] = [];
   public wsRoutes: WsRoute[] = [];
-  public middlewares: Middleware<M>[] = [];
+  public middlewares: TMiddleware<M>[] = [];
   public pageLayouts: PageLayout[] = [];
+
+  public errorPage: ErrorPage | undefined;
+  public notFoundPage: ErrorPage | undefined;
 
   constructor(app: Elysia, config: ServerOptions) {
     this.app = app;
@@ -69,6 +71,8 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
     this.routes = await this.processRoutes();
     this.middlewares = await this.processMiddlewares();
     this.actions = await this.processActions();
+    this.errorPage = await this.processErrorPage();
+    this.notFoundPage = await this.processNotFoundPage();
 
     // await this.processWsRoutes();
     // await this.processMiddlewares();
@@ -93,6 +97,14 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
       outdir: path.resolve(outputDir, "client"),
     });
 
+    await Bun.build({
+      entrypoints: [
+        path.resolve(this.config.appDir, "error.tsx"),
+        path.resolve(this.config.appDir, "404.tsx"),
+      ],
+      outdir: path.resolve(outputDir, "client"),
+    });
+
     global.__mantou_App_tsx = await dynamicImport(
       path.resolve(outputDir, "client", `App.tsx`)
     );
@@ -108,17 +120,15 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
 
   //   ------------------------------
 
-  private async _applyMiddlewares(
-    path: string,
-    type: "page" | "routes",
-    ctx: any
-  ) {
-    const middlewares = this.getMiddlewaresByPath(path, type);
-    await Promise.all(
-      middlewares.map(async (middleware) => {
-        await middleware.handler(ctx);
-      })
-    );
+  public async _applyMiddlewares(path: string, ctx: any) {
+    const middlewares = this.getMiddlewaresByPath(path);
+    const next = async () => {
+      const middleware = middlewares.shift();
+      if (middleware) {
+        await middleware.handler(ctx, next);
+      }
+    }
+    await next();
   }
 
   public applyActions() {
@@ -132,11 +142,6 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
           return res;
         },
         {
-          beforeHandle: async (context: any) => {
-            const pluginres = await applyPlugins("beforeHandle", context);
-            if (pluginres) return pluginres;
-            await this._applyMiddlewares(action.path, "routes", context);
-          },
           detail: {
             tags: ["Actions"],
             description:
@@ -155,11 +160,6 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
       };
 
       (this.app as any)[route.method](route.path, route.handler, {
-        beforeHandle: async (context: any) => {
-          const pluginres = await applyPlugins("beforeHandle", context);
-          if (pluginres) return pluginres;
-          await this._applyMiddlewares(route.path, "routes", context);
-        },
         detail: detail,
       });
     });
@@ -167,10 +167,12 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
 
   public applyPages() {
     this.pages.forEach((page) => {
+      // logger.success(`Page: ${page.path}`);
       this.app.get(
         page.path,
         async (ctx: any) => {
-          let data = (await page.getServerSideData?.(ctx)) || {};
+          let _data = (await page.getServerSideData?.(ctx)) || {};
+          const data = deepMerge({}, _data, ctx.data);
           if (ctx.query?.__mantou_only_data) {
             const query_no___mantou_only_data = _.omit(
               ctx.query,
@@ -182,105 +184,28 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
               search: query_no___mantou_only_data,
             };
           }
-          await this._applyMiddlewares(page.path, "page", ctx);
-          const layouts = this.getLayoutsByPath(page.path);
-          const layout_metadatas = await Promise.all(
-            layouts.map(async (layout) => {
-              if (layout.generateMetadata) {
-                return await layout.generateMetadata(ctx);
-              }
-            })
-          );
-          const page_metadata = await page.generateMetadata?.(ctx);
-          const static_layout_metadatas = layout_metadatas.filter(
-            (metadata) => metadata !== undefined
-          );
-          const static_page_metadata = page.metadata;
-          const metadata = deepMerge(
-            {},
-            static_layout_metadatas,
-            ...layout_metadatas,
-            static_page_metadata,
-            page_metadata
-          );
+          const metadata = await this.getMetadataByPath(page.path, ctx) || {};
           const App = global.__mantou_App_tsx.default;
 
-          let content = "";
-          useNoLog(() => {
-            content = ReactDomServer?.renderToString(
-              React.createElement(HTMLShell, {
-                children: React?.createElement(
-                  StaticRouter,
-                  {
-                    location: ctx.path,
-                  },
-                  React.createElement(App, {
-                    data,
-                    search: ctx.query,
-                    params: ctx.params,
-                  })
-                ),
-              })
-            );
+          const html = generateHtml({
+            metadata,
+            data,
+            params: ctx.params,
+            query: ctx.query,
+            children: React.createElement(HTMLShell, {
+              children: React?.createElement(
+                StaticRouter,
+                {
+                  location: ctx.path,
+                },
+                React.createElement(App, {
+                  data,
+                  search: ctx.query,
+                  params: ctx.params,
+                })
+              ),
+            }),
           });
-
-          const frontend_envs = Object.keys(process.env)
-            .filter((key) => key.startsWith("MANTOU_PUBLIC_"))
-            .reduce((acc, key) => {
-              const newKey = key;
-              acc[newKey] = process.env[key];
-              return acc;
-            }, {} as any);
-
-          const csss = glob
-            .sync(
-              upath.join(
-                process.cwd(),
-                global.__mantou_config?.outputDir,
-                "client",
-                "*.css"
-              )
-            )
-            .map((file) => {
-              return `<link rel="stylesheet" href="/dist/client/${path.basename(
-                file
-              )}">`;
-            })
-            .join("\n");
-
-          const html = content
-            .replace(
-              `<div id="mantou-head"></div>`,
-              `
-      <title>${metadata.title || "Mantou | Fullstack Framework"}</title>
-          <meta name="description" content="${
-            metadata.description ||
-            "Mantou is a fullstack framework powered by Bun"
-          }">
-          ${Object.keys(metadata)
-            .map((key) => {
-              if (key === "title" || key === "description") return "";
-              return `<meta name="${key}" content="${metadata[key]}">`;
-            })
-            .join("\n")}
-            ${csss}
-          `
-            )
-            .replace(
-              `<div id="mantou-script"></div>`,
-              `
-        <script>
-          window.__INITIAL_DATA__ = ${JSON.stringify(data)}
-          window.__INITIAL_PARAMS__ = ${JSON.stringify(ctx.params)}
-          window.__INITIAL_SEARCH__ = ${JSON.stringify(ctx.query)}
-          process = {}
-          process.env = {
-            ...process.env,
-            ...${JSON.stringify(frontend_envs)}
-          }
-        </script>
-        `
-            );
 
           return new Response(html, {
             headers: { "Content-Type": "text/html" },
@@ -300,6 +225,26 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
   //           UTILS
 
   //   ------------------------------
+
+  public async getMetadataByPath(path: string, ctx: Context<any>): Promise<MetaData | undefined> {
+    const page = this.getPageByPath(path);
+    if (!page) return undefined;
+    const layouts = this.getLayoutsByPath(page.path);
+    const layout_metadatas = await Promise.all(
+      layouts.map(async (layout) => {
+        if (layout.metadata) {
+          return layout.metadata;
+        }
+        if (layout.generateMetadata) {
+          return await layout.generateMetadata(ctx);
+        }
+      })
+    );
+    const page_metadata =
+      (await page.generateMetadata?.(ctx)) || page.metadata || {};
+    const metadata = deepMerge({}, ...layout_metadatas, page_metadata);
+    return metadata;
+  }
 
   private hasDuplicateRoutes(routes: BasePath[]): BasePath[] {
     const duplicateRoutes = routes.filter(
@@ -407,18 +352,53 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
     return files;
   }
 
+  public async processErrorPage() {
+    const errorPage = await dynamicImport(
+      path.resolve(process.cwd(), global.__mantou_config.appDir, "error.tsx")
+    )
+      .then((module) => module.default)
+      .catch(() => ErrorPage);
+    return {
+      filePath: path.resolve(
+        process.cwd(),
+        global.__mantou_config.appDir,
+        "error.tsx"
+      ),
+      path: "/error",
+      Component: errorPage,
+    };
+  }
+
+  public async processNotFoundPage() {
+    const notFoundPage = await dynamicImport(
+      path.resolve(process.cwd(), global.__mantou_config.appDir, "404.tsx")
+    )
+      .then((module) => module.default)
+      .catch(() => ErrorPage);
+
+    return {
+      filePath: path.resolve(
+        process.cwd(),
+        global.__mantou_config.appDir,
+        "404.tsx"
+      ),
+      path: "/404",
+      Component: notFoundPage,
+    };
+  }
+
   public async processPages(): Promise<Page[]> {
     const files = await this.processFiles("page.tsx");
     let pages = [] as Page[];
     for (const file of files) {
-      const module = await dynamicImport(file);
+      const module = (await dynamicImport(file)).default;
       pages.push({
         filePath: file,
         path: this.filePathToRoutePath(file),
         metadata: module.metadata,
         getServerSideData: module.getServerSideData,
         generateMetadata: module.generateMetadata,
-        Component: module.default,
+        Component: module,
       });
     }
     return pages;
@@ -428,7 +408,7 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
     const files = await this.processFiles("layout.tsx");
     let layouts = [] as Layout[];
     for (const file of files) {
-      const module = await dynamicImport(file);
+      const module = (await dynamicImport(file)).default;
       layouts.push({
         filePath: file,
         metadata: module.metadata,
@@ -455,6 +435,10 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
 
       for (const method of HTTP_METHODS) {
         if (method in module) {
+          if(module[method]?.["__type"] !== "handler"){
+            logger.error(`Route ${file} must be exported as default and have __type: "handler"`);
+            continue;
+          }
           routes.push({
             filePath: file,
             path: routePath,
@@ -476,15 +460,19 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
     });
   }
 
-  public async processMiddlewares(): Promise<Middleware[]> {
+  public async processMiddlewares(): Promise<TMiddleware[]> {
     const files = await this.getFiles({
       dir: this.config.appDir || "src/app",
       filename: "middleware.ts",
     });
-    let middlewares = [];
+    let middlewares = [] as TMiddleware[];
 
     for (const file of files) {
       const module = await dynamicImport(file);
+      if(module.default?.["__type"] !== "middleware"){
+        logger.error(`Middleware ${file} must be exported as default and have __type: "middleware"`);
+        continue;
+      }
       middlewares.push({
         filePath: file,
         path: this.filePathToRoutePath(file),
@@ -504,8 +492,12 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
 
     for (const file of files) {
       const module = await dynamicImport(file);
-      const _actions = module.actions as Record<string, Action>;
+      const _actions = module.actions as Record<string, Handler>;
       for (const key in _actions) {
+        if(_actions[key]?.["__type"] !== "handler"){
+          logger.error(`Action ${file} must be exported as default and have __type: "handler"`);
+          continue;
+        }
         actions.push({
           filePath: file,
           path: key,
@@ -590,7 +582,7 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
     return { isMatch: true, params };
   }
 
-  private matchDynamicPath(
+  public matchDynamicPath(
     path: string,
     routePath: string
   ): {
@@ -640,41 +632,37 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
   }
 
   public getLayoutsByPath(path: string): Layout[] | [] {
-    const pageFilePath = this.getPageByPath(path)?.filePath || "";
+    const page = this.getPageByPath(path);
+    if (!page) return [];
     return this.layouts
-      .filter((layout) =>this.matchParentOrDynamicPath(path, layout.path, 1).isMatch)
-      .filter((layout) => {
-        const isParent = pageFilePath
-          .replace("page.tsx", "")
-          .startsWith(layout.filePath.replace("layout.tsx", ""));
-        return isParent;
-      })
+      .filter((layout) =>
+        removeFilenameFromPath(page.filePath).startsWith(
+          removeFilenameFromPath(layout.filePath)
+        )
+      )
       .sort((a, b) => b.path.length + a.path.length);
   }
 
-  public getMiddlewaresByPath(
-    path: string,
-    type: "page" | "routes"
-  ): Middleware[] {
-    const filePath =
-      type === "page"
-        ? this.getPageByPath(path)?.filePath
-        : this.getRouteByPath(path)?.filePath;
+  public getMiddlewaresByPath(path: string): TMiddleware[] {
+    const page = this.getPageByPath(path) || this.getRouteByPath(path);
+    if (!page) return [];
     return this.middlewares
-      .filter(
-        (middleware) =>
-          this.matchParentOrDynamicPath(path, middleware.path).isMatch
-      )
       .filter((middleware) => {
-        const isParent = filePath
-          ?.replace("page.tsx", "")
-          .startsWith(middleware.filePath.replace("middleware.tsx", ""));
-        return isParent;
-      })
+        return removeFilenameFromPath(page?.filePath || "").startsWith(
+          removeFilenameFromPath(middleware.filePath)
+        )
+      }
+      )
       .sort((a, b) => b.path.length + a.path.length);
   }
 
   public getPageByPath(path: string): Page | undefined {
+    if(path === "/error") {
+      return this.errorPage;
+    }
+    if(path === "/404") {
+      return this.notFoundPage;
+    }
     return this.pages.find(
       (page) => this.matchDynamicPath(path, page.path).isMatch
     );

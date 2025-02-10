@@ -1,5 +1,5 @@
-import type { Guard } from "@/routes";
-import type { MantouPlugin } from "@/types";
+import type { TGuard } from "@/routes";
+import type { MantouPlugin } from "@/exports/types";
 import addFormats from "ajv-formats";
 import Ajv from "ajv/dist/core";
 import type { TSchema } from "elysia";
@@ -48,7 +48,7 @@ const validate = (schema: TSchema | undefined) => (data: any) => {
   return validateSchema(schema, data);
 };
 
-function applyGuards(guards: Guard[], ctx: any) {
+function applyGuards(guards: TGuard[], ctx: any) {
   for (const guard of guards) {
     for (const schemaType of ["body", "query", "params"] as const) {
       const schema = guard.config?.[schemaType];
@@ -72,10 +72,7 @@ export const mantouRouteValidation = () => {
           routeType = "page";
         }
 
-        const middlewares = props.organs.getMiddlewaresByPath(
-          ctx.path,
-          routeType
-        );
+        const middlewares = props.organs.getMiddlewaresByPath(ctx.path);
 
         for (const middleware of middlewares) {
           applyGuards(middleware.guards || [], ctx);

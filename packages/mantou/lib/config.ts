@@ -1,13 +1,13 @@
 import _ from "lodash";
-import type { PartialServerOptions, ServerOptions } from "mantou/types";
+import type { PartialServerOptions, ServerOptions } from "@/exports/types";
 import path from "path";
-import { RouteResolver } from "./file-base-router";
 import { deepMerge } from "@/utils";
 import { MantouBuilder } from "@/builder/builder";
 import Elysia from "elysia";
 
 const defaultOptions: ServerOptions = {
   isDev: true,
+  onlyBuild: false,
   port: process.env.PORT ? parseInt(process.env.PORT) : 3000,
   ssl: process.env.SSL === "true",
   host: process.env.HOST || "localhost",

@@ -1,4 +1,4 @@
-import { guard, handler, o, type Store } from 'mantou/routes'
+import { guard, handler, o } from 'mantou'
 
 const auth = (roles: string[]) => guard(async () => {
   console.log('Auth guard: ', roles);

@@ -31,22 +31,23 @@ export const content_templates = {
     content += `import { Routes, Route, Outlet, useRouter } from 'mantou/router'\n\n`;
 
     const uniqueImports = [] as string[]
-    pageLayouts.forEach((route) => {
-      if(!uniqueImports.includes(route.element.page)) {
-        uniqueImports.push(route.element.page);
+    const page_layouts = pages.map((page) => {
+      if(!uniqueImports.includes(page.filePath)) {
+        uniqueImports.push(page.filePath);
       }
-      route.element.layouts?.forEach((layout) => {
-        if(!uniqueImports.includes(layout)) {
-          uniqueImports.push(layout);
+      const layouts = builder.getLayoutsByPath(page.path) as Layout[];
+      for(let layout of layouts) {
+        if(!uniqueImports.includes(layout.filePath)) {
+          uniqueImports.push(layout.filePath);
         }
-      });
-    });
+      }
+    }).flat();
     // sort unique imports
     uniqueImports.sort((a, b) => a.split('/').length + b.split('/').length);
 
     const importMap = new Map<string, string>();
     uniqueImports.forEach((filePath, index) => {
-      const isLayout = filePath.includes("layout");
+      const isLayout = filePath.includes("layout.");
       const componentName = isLayout ? `Layout${index}` : `Page${index}`;
       importMap.set(filePath, componentName);
       content += `import ${componentName} from '${filePath}'\n`;
@@ -121,7 +122,7 @@ export const content_templates = {
       if (process.env.NODE_ENV === "development") {
         const connectWebSocket = (maxReload = 5) => {
           let reloadAttempts = 0;
-          const ws = new WebSocket(\`ws://\${window.location.host}/live-reload\`);
+          const ws = new WebSocket(\`ws://\${window.location.host}/__mantou_live_reload\`);
           
           ws.onmessage = (event) => {
             if (event.data === 'reload') {

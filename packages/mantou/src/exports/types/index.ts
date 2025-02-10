@@ -1,36 +1,39 @@
 import type { MantouBuilder } from "@/builder/builder";
-import type { Layout, Middleware, PageLayout, Route } from "@/builder/types";
 import type { Context } from "@/routes";
 import type { ElysiaSwaggerConfig } from "@elysiajs/swagger";
 import type Elysia from "elysia";
 import type { HTTPHeaders } from "elysia/types";
 
-export interface MantouOrgans extends MantouBuilder<any, any> {
+export interface MantouOrgans extends MantouBuilder<any, any> {}
 
-}
-
-export interface Page {
-}
 export interface LifeProps {
   config: ServerOptions;
   app: Elysia;
   organs: MantouOrgans;
 }
 
-export type OnAppType = "beforeBuild" | "afterBuild" | "afterBootstrap" | "beforeStart";
-export type OnRequestType = "beforeHandle"
+export type OnAppType =
+  | "beforeBuild"
+  | "afterBuild"
+  | "afterBootstrap"
+  | "beforeStart";
+export type OnRequestType = "beforeHandle";
 
 export type OnAppHandler = (props: LifeProps) => any | Promise<any>;
-export type OnRequestHandler = (ctx: Context<any>, props: LifeProps) => any | Promise<any>;
+export type OnRequestHandler = (
+  ctx: Context<any>,
+  props: LifeProps
+) => any | Promise<any>;
 
 export class MantouPlugin {
-    name = "mantou-plugin";
-    onApp: Partial<Record<OnAppType, OnAppHandler>> = {}
-    onRequest: Partial<Record<OnRequestType, OnRequestHandler>> = {}
-  }
+  name = "mantou-plugin";
+  onApp: Partial<Record<OnAppType, OnAppHandler>> = {};
+  onRequest: Partial<Record<OnRequestType, OnRequestHandler>> = {};
+}
 
 export interface ServerOptions<Path extends string = any> {
   isDev: boolean;
+  onlyBuild: boolean;
   port: number;
   host: string;
   ssl: boolean;
@@ -49,18 +52,6 @@ export interface ServerOptions<Path extends string = any> {
 }
 
 export type PartialServerOptions = Partial<ServerOptions>;
-
-export interface PageProps<
-  TProps extends {
-    data?: any;
-    params?: any;
-    search?: any;
-  } = any
-> {
-  data: TProps["data"];
-  params: TProps["params"];
-  search: TProps["search"];
-}
 
 export interface Store {
   [key: string]: any;
@@ -87,5 +78,5 @@ export interface ValidationResult {
 export interface ReactDependencies {
   React: typeof import("react");
   ReactDOMServer: typeof import("react-dom/server");
-  ReactRouter: any
+  ReactRouter: any;
 }

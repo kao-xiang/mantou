@@ -1,4 +1,4 @@
-import type { LifeProps } from "@/types"
+import type { LifeProps } from "@/exports/types"
 import { MantouBuilder } from "./builder"
 import fs from "fs/promises"
 

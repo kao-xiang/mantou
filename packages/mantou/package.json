@@ -8,26 +8,20 @@
     ".": {
       "import": "./src/index.ts"
     },
-    "./routes": {
-      "import": "./src/routes/index.ts"
+    "./router": {
+      "import": "./src/exports/router/index.ts"
     },
     "./translation": {
-      "import": "./src/translation/index.ts"
-    },
-    "./router": {
-      "import": "./src/router/index.ts"
+      "import": "./src/exports/translation/index.ts"
     },
     "./plugins": {
-      "import": "./src/plugins/index.ts"
+      "import": "./src/exports/plugins/index.ts"
     },
     "./types": {
-      "import": "./src/types/index.ts"
+      "import": "./src/exports/types/index.ts"
     },
     "./utils": {
-      "import": "./src/utils/index.ts"
-    },
-    "./action-form": {
-      "import": "./src/action-form/index.ts"
+      "import": "./src/exports/utils/index.ts"
     }
   },
   "bin": {

@@ -1,10 +1,12 @@
 import type {
   GenerateMetadata,
   GetServerSideData,
-  Guard,
+  TGuard,
   HandlerConfig,
   MetaData,
   RouteHandlerFunction,
+  BaseContext,
+  MiddlewareHandler,
 } from "@/routes";
 import type { HTTPMethod } from "elysia";
 
@@ -17,17 +19,17 @@ export interface Route<TConfig extends HandlerConfig = any> extends BasePath {
   method: HTTPMethod;
   handler: RouteHandlerFunction<TConfig>;
   config: TConfig;
-  guards: Guard[];
+  guards: TGuard[];
 }
 
 export interface WsRoute<TConfig extends HandlerConfig = any> extends BasePath {
   onMessage: RouteHandlerFunction<TConfig>;
   config: TConfig;
-  guards: Guard[];
+  guards: TGuard[];
 }
 
-export interface Page extends BasePath {
-  Component: React.ComponentType;
+export interface Page<C = any> extends BasePath {
+  Component: React.ComponentType<C>;
   metadata?: MetaData;
   getServerSideData?: GetServerSideData;
   generateMetadata?: GenerateMetadata;
@@ -47,13 +49,13 @@ export interface PageLayout {
   };
 }
 
-export interface Middleware<TConfig extends HandlerConfig = any> extends BasePath {
-  handler: RouteHandlerFunction<TConfig>;
-  guards: Guard[];
+export interface TMiddleware<T = any> extends BasePath {
+  handler: MiddlewareHandler<T>;
+  guards: TGuard[];
 }
 
 export interface Action<TConfig extends HandlerConfig = any> extends BasePath {
   handler: RouteHandlerFunction<TConfig>;
-  guards: Guard[];
+  guards: TGuard[];
   config: TConfig;
 }

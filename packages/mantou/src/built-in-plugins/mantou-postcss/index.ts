@@ -1,4 +1,4 @@
-import type { MantouPlugin, ServerOptions } from "@/types";
+import type { MantouPlugin, ServerOptions } from "@/exports/types";
 import postcss from "postcss";
 import path from "path";
 import { glob } from "glob";

@@ -1,7 +1,7 @@
-import type { Action } from "@/builder/types";
 import { error, file, type Static, type TSchema } from "elysia";
 import { t as o } from "elysia";
 import type { HTTPHeaders } from "elysia/types";
+import type { PropsWithChildren } from "react";
 
 type ContentType =
   | "text"
@@ -54,7 +54,7 @@ export type RouteHandlerFunction<TConfig extends HandlerConfig> = (
   ctx: Context<TConfig>
 ) => Promise<any> | any;
 
-export interface Guard {
+export interface TGuard {
   handler: RouteHandlerFunction<any>;
   config?: HandlerConfig;
 }
@@ -81,33 +81,68 @@ export function handler<
     type?: ContentType;
     [key: string]: any;
   },
-  guards: Guard[] = []
+  guards: TGuard[] = []
 ) {
-  return { handler: fn, config, guards };
+  return { handler: fn, config, guards, "__type": "handler" };
+}
+
+export interface MiddlewareContext extends BaseContext {
+  path: string;
+  route: string;
+  body: any;
+  query: Record<string, string>;
+  params: Record<string, any>;
+  isPage?: boolean;
+}
+
+export type MiddlewareHandler<T = any> = (ctx: MiddlewareContext, next: () => Promise<any>) => Promise<T> | T;
+
+export function middleware<T = any>(
+  fn: (ctx: MiddlewareContext, next: () => Promise<any>) => Promise<T> | T,
+  guards?: Guard[]
+) {
+  return { handler: fn, guards, "__type": "middleware" };
 }
 
 export function guard<TConfig extends HandlerConfig>(
   fn: RouteHandlerFunction<TConfig>,
   config?: TConfig
 ) {
-  return { handler: fn, config };
+  return { handler: fn, config, "__type": "guard" };
 }
 
-export function acts(namespace: string, actions: Record<string, {
-  handler: RouteHandlerFunction<any>;
-  config?: HandlerConfig;
-  guards?: Guard[];
-}>) {
-  let renamedActions: Record<string, {
-    handler: RouteHandlerFunction<any>;
-    config?: HandlerConfig;
-    guards?: Guard[];
-  }> = {};
+export type Middleware = ReturnType<typeof middleware>;
+
+export type Guard = ReturnType<typeof guard>;
+
+export type Handler = ReturnType<typeof handler>;
+
+export function acts(
+  namespace: string,
+  actions: Record<
+    string,
+    {
+      handler: RouteHandlerFunction<any>;
+      config?: HandlerConfig;
+      guards?: TGuard[];
+    }
+  >
+) {
+  let renamedActions: Record<
+    string,
+    {
+      handler: RouteHandlerFunction<any>;
+      config?: HandlerConfig;
+      guards?: TGuard[];
+    }
+  > = {};
   for (const key in actions) {
     renamedActions[`${namespace}_${key}`] = actions[key];
   }
   return renamedActions;
 }
+
+export type Acts = ReturnType<typeof acts>;
 
 export type GetServerSideData<
   T extends {
@@ -140,6 +175,34 @@ export type GenerateMetadata<
     query: any;
   }
 > = (context: T & Context<any>) => MetaData | Promise<MetaData>;
+
+export interface PageProps<
+  TProps extends {
+    data?: any;
+    params?: any;
+    search?: any;
+  } = any
+> {
+  data: TProps["data"];
+  params: TProps["params"];
+  search: TProps["search"];
+}
+
+export interface ErrorPageProps {
+  error: {
+    status: number;
+    message: any;
+    code: string | number;
+  };
+}
+
+interface MantouFC<T = PageProps> extends React.FC<PropsWithChildren<T>> {
+  getServerSideData?: Handler;
+  generateMetadata?: Handler;
+  metadata?: MetaData;
+}
+
+export type FC<T = PageProps> = MantouFC<PropsWithChildren<T>>;
 
 export type { TSchema, Static };
 

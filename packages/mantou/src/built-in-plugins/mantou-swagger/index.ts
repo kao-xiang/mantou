@@ -1,4 +1,4 @@
-import type { MantouPlugin } from "@/types";
+import type { MantouPlugin } from "@/exports/types";
 import swagger from "@elysiajs/swagger";
 import { logger } from "lib/logger";
 
@@ -7,7 +7,7 @@ export const mantouSwaggerPlugin = () => {
     name: "mantou-swagger-plugin",
     onApp: {
       afterBuild({ app, config }) {
-        if (config?.swagger) {
+        if (config?.swagger && !config.onlyBuild) {
           app.use(
             swagger({
               ...config.swagger,
@@ -16,7 +16,7 @@ export const mantouSwaggerPlugin = () => {
         }
       },
       beforeStart({ app, config }) {
-        if (config?.swagger) {
+        if (config?.swagger && !config.onlyBuild) {
           const isSSL = config.ssl;
           const sslText = isSSL ? "https" : "http";
           logger.info(

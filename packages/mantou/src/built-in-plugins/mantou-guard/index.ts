@@ -1,7 +1,7 @@
-import type { Guard } from "@/routes";
-import type { MantouPlugin } from "@/types";
+import type { TGuard } from "@/routes";
+import type { MantouPlugin } from "@/exports/types";
 
-async function applyGuards(guards: Guard[], ctx: any) {
+async function applyGuards(guards: TGuard[], ctx: any) {
   for (const guard of guards) {
     await guard.handler(ctx);
   }
@@ -19,10 +19,7 @@ export const mantouGuard = () => {
           routeType = "page";
         }
 
-        const middlewares = props.organs.getMiddlewaresByPath(
-          ctx.path,
-          routeType
-        );
+        const middlewares = props.organs.getMiddlewaresByPath(ctx.path);
 
         for (const middleware of middlewares) {
           applyGuards(middleware.guards || [], ctx);

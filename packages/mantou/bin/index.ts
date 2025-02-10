@@ -2,9 +2,11 @@
 import { program } from "commander";
 import { watch } from "chokidar";
 import pc from "picocolors";
-import type Elysia from "elysia";
+import Elysia from "elysia";
 import { startServer } from "lib/server";
-import { buildApp } from "lib/config";
+import { buildApp, loadConfig } from "lib/config";
+import { build } from "@/builder";
+import { logger } from "lib/logger";
 
 let currentServer: Elysia | null = null;
 
@@ -18,7 +20,8 @@ async function restartServer(options: { isDev?: boolean } = {}) {
     }
     currentServer = await startServer(options);
   } catch (error: any) {
-    console.error(pc.red("Error restarting server:"), error?.message || error);
+    console.error(pc.red("Error restarting server:"));
+    console.error(pc.red(error));
     process.exit(1);
   }
 }
@@ -76,14 +79,14 @@ program
   .description("Build client for production")
   .action(async () => {
     process.env.NODE_ENV = "production";
-    await buildApp({ isDev: false });
+    await startServer({ isDev: false, onlyBuild: true });
+    logger.success("tink ! mantou ready to serve");
   });
 
 program
   .command("start")
   .description("Start production server")
   .action(async () => {
-    process.env.NODE_ENV = "production";
     await startServer({ isDev: false });
   });
 

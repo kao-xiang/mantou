@@ -1,4 +1,4 @@
-import type { MantouPlugin } from "@/types";
+import type { MantouPlugin } from "@/exports/types";
 import staticPlugin from "@elysiajs/static";
 import path from "path";
 

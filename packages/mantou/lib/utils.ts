@@ -1,11 +1,11 @@
-import { mantouCorsPlugin } from "@/plugins/mantou-cors";
-import { mantouGuard } from "@/plugins/mantou-guard";
-import { mantouPostCSSPlugin } from "@/plugins/mantou-postcss";
-import { mantouRouteValidation } from "@/plugins/mantou-route-validation";
-import { mantouStaticPlugin } from "@/plugins/mantou-static";
-import { mantouSwaggerPlugin } from "@/plugins/mantou-swagger";
+import { mantouCorsPlugin } from "@/built-in-plugins/mantou-cors";
+import { mantouGuard } from "@/built-in-plugins/mantou-guard";
+import { mantouPostCSSPlugin } from "@/built-in-plugins/mantou-postcss";
+import { mantouRouteValidation } from "@/built-in-plugins/mantou-route-validation";
+import { mantouStaticPlugin } from "@/built-in-plugins/mantou-static";
+import { mantouSwaggerPlugin } from "@/built-in-plugins/mantou-swagger";
 import type { BaseContext, Context } from "@/routes";
-import type { MantouPlugin, OnAppType, OnRequestType } from "@/types";
+import type { MantouPlugin, OnAppType, OnRequestType } from "@/exports/types";
 import fs from "fs/promises";
 import upath from "upath";
 
@@ -65,4 +65,13 @@ export async function cleanOutputDir() {
   );
   await fs.rm(outputDir, { recursive: true, force: true });
   return outputDir;
+}
+
+
+export function isParamFileSlug(slug: string): boolean {
+  return slug.startsWith("[") && slug.endsWith("]");
+}
+
+export function isRestParamFileSlug(slug: string): boolean {
+  return slug.startsWith("[...") && slug.endsWith("]");
 }
