@@ -396,7 +396,7 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
         filePath: file,
         path: this.filePathToRoutePath(file),
         metadata: module.metadata,
-        getServerSideData: module.getServerSideData,
+        getServerSideData: module.getServerSideData?.handler,
         generateMetadata: module.generateMetadata,
         Component: module,
       });

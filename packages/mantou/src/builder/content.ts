@@ -83,9 +83,9 @@ export const content_templates = {
             setParams(r.params);
           }).catch((e: any) => {});
         }else{
-          setData(router?.state?.data);
-          setSearch(router?.state?.search);
-          setParams(router?.state?.params);
+          setData(router?.state?.data || _data);
+          setSearch(router?.state?.search || _search);
+          setParams(router?.state?.params || _params);
         }
           
         }, [router.pathname]);

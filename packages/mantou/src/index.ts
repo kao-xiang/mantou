@@ -8,7 +8,8 @@ import type {
   Acts,
   PageProps,
   FC,
-  Middleware
+  Middleware,
+  Store
 } from "./routes";
 import { ActionForm, ActionFormProvider } from "./action-form";
 
@@ -25,4 +26,4 @@ export {
   middleware
 };
 
-export type { MetaData, GenerateMetadata, Guard, Handler, PageProps, FC, Acts, Middleware };
+export type { MetaData, GenerateMetadata, Guard, Handler, PageProps, FC, Acts, Middleware, Store };
