@@ -120,7 +120,7 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
   //   ------------------------------
 
   public async _applyMiddlewares(path: string, ctx: any) {
-    const middlewares = this.getMiddlewaresByPath(path);
+    const middlewares = this.getMiddlewaresByPath(path, ctx.method);
     const next = async () => {
       const middleware = middlewares.shift();
       if (middleware) {
@@ -159,6 +159,7 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
       };
 
       (this.app as any)[route.method](route.path, route.handler, {
+        ...route.config,
         detail: detail,
       });
     });
@@ -617,10 +618,12 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
     return { isMatch: true, params };
   }
 
-  public getRouteByPath(path: string): Route | undefined {
-    return this.routes.find(
+  public getRouteByPath(path: string, method: string): Route | undefined {
+    const routes = this.routes.filter(
       (route) => this.matchDynamicPath(path, route.path).isMatch
-    );
+    )
+    const route = routes.find((route) => route.method?.toLowerCase() === method?.toLowerCase())
+    return route;
   }
 
   public getPathParams(
@@ -642,8 +645,8 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
       .sort((a, b) => b.path.length + a.path.length);
   }
 
-  public getMiddlewaresByPath(path: string): TMiddleware[] {
-    const page = this.getPageByPath(path) || this.getRouteByPath(path);
+  public getMiddlewaresByPath(path: string, method: string): TMiddleware[] {
+    const page = this.getPageByPath(path) || this.getRouteByPath(path, method);
     if (!page) return [];
     return this.middlewares
       .filter((middleware) => {

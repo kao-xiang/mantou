@@ -13,13 +13,13 @@ export const mantouGuard = () => {
     onRequest: {
       async beforeHandle(ctx, props) {
         let routeType = "routes" as "routes" | "page";
-        let route = props.organs.getRouteByPath(ctx.path) as any;
+        let route = props.organs.getRouteByPath(ctx.path, ctx.request.method) as any;
         if (!route) {
           route = props.organs.getPageByPath(ctx.path);
           routeType = "page";
         }
 
-        const middlewares = props.organs.getMiddlewaresByPath(ctx.path);
+        const middlewares = props.organs.getMiddlewaresByPath(ctx.path, ctx.request.method);
 
         for (const middleware of middlewares) {
           applyGuards(middleware.guards || [], ctx);

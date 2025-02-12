@@ -85,7 +85,7 @@ export const startServer = async (_options?: PartialServerOptions) => {
       interface NewCtx extends BaseContext {
         path: string;
         route: string;
-        body: any;
+        body?: any;
         query: Record<string, string>;
         params: Record<string, any>;
         isPage?: boolean;
@@ -96,17 +96,25 @@ export const startServer = async (_options?: PartialServerOptions) => {
         ...ctx,
         path: path,
         route: "",
-        body: await ctx.request.json().catch(async () => (await ctx.request.text()?.catch(() => undefined))),
         query: Object.fromEntries(url.searchParams),
-        params: pages.find((page: any) => {
-          const res = organs.matchDynamicPath(path, page.path);
-          return res;
-        })?.params || {},
+        params:
+          pages.find((page: any) => {
+            const res = organs.matchDynamicPath(path, page.path);
+            return res;
+          })?.params || {},
         isPage: isPage ? true : false,
       };
-
       await organs._applyMiddlewares(path, newCtx);
       ctx.store = newCtx.store;
+      if (!isPage) {
+        const route = organs.getRouteByPath(path);
+        if (route) {
+          return await route.handler(newCtx).catch((error: any) => {
+            console.error(error);
+            throw error;
+          });
+        }
+      }
     })
     .onError(async (ctx) => {
       const builder = global.__mantou_organs as MantouBuilder<any, any>;
