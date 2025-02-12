@@ -81,7 +81,9 @@ const apply = async (config: ServerOptions) => {
       "styles",
       "global.css"
     );
-    await writeRecursive(outPath, cssContent.join("\n"));
+    await writeRecursive(outPath, cssContent.join("\n").replaceAll(
+      "`", ""
+    ));
   }
 };
 

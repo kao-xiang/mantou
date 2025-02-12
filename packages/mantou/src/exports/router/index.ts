@@ -1,3 +1,4 @@
+import { Link } from "@/components/link";
 import { redirect } from "./redirect";
 import { useRouter } from "./useRouter";
 import {
@@ -8,9 +9,7 @@ import {
   BrowserRouter,
   useBlocker,
   useBeforeUnload,
-  Link,
 } from "react-router";
-
 
 export {
   Routes,

@@ -1,11 +1,9 @@
 import React from "react";
-import ReactDomServer from "react-dom/server";
 import type { Context, ErrorPageProps, Handler, HandlerConfig, MetaData } from "@/routes";
 import type { ServerOptions } from "@/exports/types";
 import {
   deepMerge,
   dynamicImport,
-  f,
   normalizePath,
   removeFilenameFromPath,
   writeRecursive,
@@ -32,6 +30,7 @@ import { generateHtml, HTMLShell } from "./component";
 import { StaticRouter } from "react-router";
 import { ErrorPage } from "shell/ErrorPage";
 import { logger } from "lib/logger";
+import { f } from "@/utils/client";
 // Constants
 const HTTP_METHODS: readonly HTTPMethod[] = [
   "get",
