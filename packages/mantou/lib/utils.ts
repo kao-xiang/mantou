@@ -24,12 +24,12 @@ export const applyPlugins = async (
   const builtInPlugins = [
     mantouStaticPlugin(),
     mantouPostCSSPlugin(),
-    mantouSwaggerPlugin(),
     mantouCorsPlugin(),
     mantouRouteValidation(),
     mantouGuard(),
+    mantouSwaggerPlugin(),
   ] as MantouPlugin[];
-  const allPlugins = [...builtInPlugins, ...plugins];
+  const allPlugins = [...plugins, ...builtInPlugins];
 
   for (const plugin of allPlugins) {
     const isOnApp = plugin.onApp?.[hookName as OnAppType];

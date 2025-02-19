@@ -27,8 +27,8 @@ export type OnRequestHandler = (
 
 export class MantouPlugin {
   name = "mantou-plugin";
-  onApp: Partial<Record<OnAppType, OnAppHandler>> = {};
-  onRequest: Partial<Record<OnRequestType, OnRequestHandler>> = {};
+  onApp?: Partial<Record<OnAppType, OnAppHandler>> = {};
+  onRequest?: Partial<Record<OnRequestType, OnRequestHandler>> = {};
 }
 
 export interface ServerOptions<Path extends string = any> {

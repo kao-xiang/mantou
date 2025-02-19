@@ -78,7 +78,9 @@ export const mantouRouteValidation = () => {
           applyGuards(middleware.guards || [], ctx);
         }
 
-        applyGuards(route.guards || [], ctx);
+        if(route?.guards) {
+          applyGuards(route?.guards || [], ctx);
+        }
       },
     },
   } as MantouPlugin;

@@ -1,5 +1,13 @@
 import React from "react";
-import type { Context, ErrorPageProps, Handler, HandlerConfig, MetaData } from "@/routes";
+import type {
+  Context,
+  ErrorPageProps,
+  Handler,
+  HandlerConfig,
+  MetaData,
+  RouteHandlerFunction,
+  TGuard,
+} from "@/routes";
 import type { ServerOptions } from "@/exports/types";
 import {
   deepMerge,
@@ -31,6 +39,7 @@ import { StaticRouter } from "react-router";
 import { ErrorPage } from "shell/ErrorPage";
 import { logger } from "lib/logger";
 import { f } from "@/utils/client";
+import { astorage } from "lib/async-context";
 // Constants
 const HTTP_METHODS: readonly HTTPMethod[] = [
   "get",
@@ -40,7 +49,7 @@ const HTTP_METHODS: readonly HTTPMethod[] = [
   "delete",
 ];
 
-type ErrorPage = Page<ErrorPageProps>
+type ErrorPage = Page<ErrorPageProps>;
 
 export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
   private app: Elysia;
@@ -65,11 +74,11 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
   public build = async () => {
     const outputDir = upath.resolve(process.cwd(), this.config.outputDir);
 
-    this.pages = await this.processPages();
-    this.layouts = await this.processLayouts();
-    this.routes = await this.processRoutes();
+    await this.processPages();
+    await this.processLayouts();
+    await this.processRoutes();
+    await this.processActions();
     this.middlewares = await this.processMiddlewares();
-    this.actions = await this.processActions();
     this.errorPage = await this.processErrorPage();
     this.notFoundPage = await this.processNotFoundPage();
 
@@ -112,6 +121,57 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
     this.applyPages();
     this.applyActions();
   };
+  //   ------------------------------
+
+  //           Add
+
+  //   ------------------------------
+
+  public async addAction(props: {
+    path: string;
+    handler: RouteHandlerFunction<any>;
+    filePath?: string;
+    config?: HandlerConfig;
+    guards?: TGuard[];
+  }) {
+    this.actions.push({
+      path: props.path,
+      filePath: props.filePath || "",
+      handler: props.handler,
+      config: props.config,
+      guards: props.guards || [],
+    });
+  }
+
+  public async addRoute(props: {
+    method: HTTPMethod;
+    path: string;
+    filePath?: string;
+    handler: RouteHandlerFunction<any>;
+    config?: HandlerConfig;
+    guards?: TGuard[];
+  }) {
+    this.routes.push({
+      method: props.method,
+      path: props.path,
+      filePath: props.filePath || "",
+      handler: props.handler,
+      config: props.config,
+      guards: props.guards || [],
+    } as Route);
+  }
+
+  public async addPage(props: { path: string; filePath: string }) {
+    const module = (await dynamicImport(props.filePath)).default;
+    this.pages.push({
+      filePath: props.filePath,
+      path: props.path,
+      metadata: module.metadata,
+      getServerSideData: module.getServerSideData?.handler,
+      generateMetadata: module.generateMetadata,
+      Component: module,
+    });
+  }
 
   //   ------------------------------
 
@@ -119,14 +179,17 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
 
   //   ------------------------------
 
-  public async _applyMiddlewares(path: string, ctx: any) {
-    const middlewares = this.getMiddlewaresByPath(path, ctx.method);
+  public async _applyMiddlewares(path: string, ctx: any): Promise<any> {
+    const middlewares = this.getMiddlewaresByPath(path, ctx.request?.method?.toLowerCase());
     const next = async () => {
       const middleware = middlewares.shift();
       if (middleware) {
-        await middleware.handler(ctx, next);
+        const mRes = await middleware.handler(ctx, next);
+        if (mRes) {
+          return mRes;
+        }
       }
-    }
+    };
     await next();
   }
 
@@ -137,8 +200,10 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
       app.post(
         actionPath + "/" + action.path,
         async (ctx: any) => {
-          const res = await action.handler(ctx);
-          return res;
+          astorage?.run({ ctx }, async () => {
+            const res = await action.handler(ctx);
+            return res;
+          });
         },
         {
           detail: {
@@ -154,14 +219,38 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
   public applyRoutes() {
     this.routes.forEach((route) => {
       const detail = route.config?.detail || {
-        tags: [f(route.path.split("/")[1]) || "Routes"],
+        tags: [
+          f(
+            route.path?.startsWith("/api/")
+              ? route.path.split("/")[2]
+              : route.path.split("/")[1]
+          ) || "Routes",
+        ],
         description: `Route ${route.path}`,
       };
 
-      (this.app as any)[route.method](route.path, route.handler, {
-        ...route.config,
-        detail: detail,
-      });
+      (this.app as any)[route.method](
+        route.path,
+        async (_ctx: any) => {
+          return astorage?.run({ ctx: _ctx }, async () => {
+            const store = astorage?.getStore() as any;
+            const ctx = store.ctx;
+            const newCtx = _.merge({}, ctx, _ctx);
+            const middlewareRes = await this._applyMiddlewares(
+              route.path,
+              newCtx
+            );
+            if (middlewareRes) {
+              return middlewareRes;
+            }
+            return route.handler(newCtx);
+          });
+        },
+        {
+          ...route.config,
+          detail: detail,
+        }
+      );
     });
   }
 
@@ -184,7 +273,7 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
               search: query_no___mantou_only_data,
             };
           }
-          const metadata = await this.getMetadataByPath(page.path, ctx) || {};
+          const metadata = (await this.getMetadataByPath(page.path, ctx)) || {};
           const App = global.__mantou_App_tsx.default;
 
           const html = generateHtml({
@@ -226,7 +315,10 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
 
   //   ------------------------------
 
-  public async getMetadataByPath(path: string, ctx: Context<any>): Promise<MetaData | undefined> {
+  public async getMetadataByPath(
+    path: string,
+    ctx: Context<any>
+  ): Promise<MetaData | undefined> {
     const page = this.getPageByPath(path);
     if (!page) return undefined;
     const layouts = this.getLayoutsByPath(page.path);
@@ -392,7 +484,11 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
     let pages = [] as Page[];
     for (const file of files) {
       const module = (await dynamicImport(file)).default;
-      pages.push({
+      if (!module) {
+        logger.warn(`Page ${file} must be exported as default`);
+        continue;
+      }
+      this.pages.push({
         filePath: file,
         path: this.filePathToRoutePath(file),
         metadata: module.metadata,
@@ -409,7 +505,7 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
     let layouts = [] as Layout[];
     for (const file of files) {
       const module = (await dynamicImport(file)).default;
-      layouts.push({
+      this.layouts.push({
         filePath: file,
         metadata: module.metadata,
         path: this.filePathToRoutePath(file),
@@ -435,14 +531,16 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
 
       for (const method of HTTP_METHODS) {
         if (method in module) {
-          if(module[method]?.["__type"] !== "handler"){
-            logger.error(`Route ${file} must be exported as default and have __type: "handler"`);
+          if (module[method]?.["__type"] !== "handler") {
+            logger.error(
+              `Route ${file} must be exported as default and have __type: "handler"`
+            );
             continue;
           }
-          routes.push({
+          this.addRoute({
+            method,
             filePath: file,
             path: routePath,
-            method,
             handler: module[method]?.handler,
             config: module[method]?.config,
             guards: module[method]?.guards ?? [],
@@ -469,8 +567,10 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
 
     for (const file of files) {
       const module = await dynamicImport(file);
-      if(module.default?.["__type"] !== "middleware"){
-        logger.error(`Middleware ${file} must be exported as default and have __type: "middleware"`);
+      if (module.default?.["__type"] !== "middleware") {
+        logger.error(
+          `Middleware ${file} must be exported as default and have __type: "middleware"`
+        );
         continue;
       }
       middlewares.push({
@@ -494,11 +594,13 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
       const module = await dynamicImport(file);
       const _actions = module.actions as Record<string, Handler>;
       for (const key in _actions) {
-        if(_actions[key]?.["__type"] !== "handler"){
-          logger.error(`Action ${file} must be exported as default and have __type: "handler"`);
+        if (_actions[key]?.["__type"] !== "handler") {
+          logger.error(
+            `Action ${file} must be exported as default and have __type: "handler"`
+          );
           continue;
         }
-        actions.push({
+        this.actions.push({
           filePath: file,
           path: key,
           handler: _actions[key].handler,
@@ -621,8 +723,10 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
   public getRouteByPath(path: string, method: string): Route | undefined {
     const routes = this.routes.filter(
       (route) => this.matchDynamicPath(path, route.path).isMatch
-    )
-    const route = routes.find((route) => route.method?.toLowerCase() === method?.toLowerCase())
+    );
+    const route = routes.find(
+      (route) => route.method?.toLowerCase() === method?.toLowerCase()
+    );
     return route;
   }
 
@@ -652,17 +756,16 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
       .filter((middleware) => {
         return removeFilenameFromPath(page?.filePath || "").startsWith(
           removeFilenameFromPath(middleware.filePath)
-        )
-      }
-      )
+        );
+      })
       .sort((a, b) => b.path.length + a.path.length);
   }
 
   public getPageByPath(path: string): Page | undefined {
-    if(path === "/error") {
+    if (path === "/error") {
       return this.errorPage;
     }
-    if(path === "/404") {
+    if (path === "/404") {
       return this.notFoundPage;
     }
     return this.pages.find(

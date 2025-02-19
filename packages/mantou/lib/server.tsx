@@ -37,15 +37,24 @@ function startDevServer() {
 }
 
 export const startServer = async (_options?: PartialServerOptions) => {
+  const oldErrorLog = console.error;
+  console.error = (msg: string) => {
+    if (msg?.startsWith?.("NOT_FOUND")) {
+      return;
+    }
+    oldErrorLog(msg);
+  };
   const __options = await loadConfig(_options);
   const _app = new Elysia();
-
+  console.log(
+    `🍞 Starting server in ${
+      __options.isDev ? "development" : "production"
+    } mode`
+  );
   global.__mantou_config = __options;
   global.__mantou_app = _app;
 
   await cleanOutputDir();
-
-  await applyPlugins("beforeBuild");
 
   await build({
     app: global.__mantou_app,
@@ -81,44 +90,64 @@ export const startServer = async (_options?: PartialServerOptions) => {
       if (!verbosePath.some((p) => path.includes(p))) {
         logger.info(`🍞 Request: ${ctx.request.url}`);
       }
-      const isPage = global.__mantou_organs.getPageByPath(path);
-      interface NewCtx extends BaseContext {
-        path: string;
-        route: string;
-        body?: any;
-        query: Record<string, string>;
-        params: Record<string, any>;
-        isPage?: boolean;
-      }
-      const pages = global.__mantou_organs.pages;
-      const organs = global.__mantou_organs;
-      let newCtx: NewCtx = {
-        ...ctx,
-        path: path,
-        route: "",
-        query: Object.fromEntries(url.searchParams),
-        params:
-          pages.find((page: any) => {
-            const res = organs.matchDynamicPath(path, page.path);
-            return res;
-          })?.params || {},
-        isPage: isPage ? true : false,
-      };
-      await organs._applyMiddlewares(path, newCtx);
-      ctx.store = newCtx.store;
-      if (!isPage) {
-        const route = organs.getRouteByPath(path);
-        if (route) {
-          return await route.handler(newCtx).catch((error: any) => {
-            console.error(error);
-            throw error;
-          });
-        }
-      }
     })
+    // .onRequest(async (ctx) => {
+    //   const verbosePath = [
+    //     "favicon.ico",
+    //     "dist",
+    //     "public",
+    //     "__mantou_live_reload",
+    //   ];
+    //   const url = new URL(ctx.request.url);
+    //   const path = url.pathname;
+    //   if (!verbosePath.some((p) => path.includes(p))) {
+    //     logger.info(`🍞 Request: ${ctx.request.url}`);
+    //   }
+    //   const isPage = global.__mantou_organs.getPageByPath(path);
+    //   interface NewCtx extends BaseContext {
+    //     path: string;
+    //     route: string;
+    //     body?: any;
+    //     query: Record<string, string>;
+    //     params: Record<string, any>;
+    //     isPage?: boolean;
+    //     headers: any;
+    //   }
+    //   const pages = global.__mantou_organs.pages;
+    //   const organs = global.__mantou_organs;
+    //   const headers = ctx.request.headers.toJSON();
+    //   let newCtx: NewCtx = {
+    //     ...ctx,
+    //     path: path,
+    //     route: "",
+    //     query: Object.fromEntries(url.searchParams),
+    //     params:
+    //       pages.find((page: any) => {
+    //         const res = organs.matchDynamicPath(path, page.path);
+    //         return res;
+    //       })?.params || {},
+    //     isPage: isPage ? true : false,
+    //     headers: headers
+    //   };
+    //   await organs._applyMiddlewares(path, newCtx);
+    //   ctx.store = newCtx.store;
+    //   if (!isPage) {
+    //     const beforeHandleRes = await applyPlugins("beforeHandle", newCtx as any).catch((error) => { console.error(error); });
+    //     if(beforeHandleRes){
+    //       return beforeHandleRes
+    //     }
+    //     const route = organs.getRouteByPath(path);
+    //     if (route) {
+    //       return await route.handler(newCtx).catch((error: any) => {
+    //         console.error(error);
+    //       });
+    //     }else{
+
+    //     }
+    //   }
+    // })
     .onError(async (ctx) => {
       const builder = global.__mantou_organs as MantouBuilder<any, any>;
-
       if (ctx.code === "NOT_FOUND") {
         logger.error(`🍞 ${ctx.error} ${ctx.path}`);
         const html = generateHtml({
@@ -183,6 +212,5 @@ export const startServer = async (_options?: PartialServerOptions) => {
         );
       }
     );
-
   return global.__mantou_app;
 };

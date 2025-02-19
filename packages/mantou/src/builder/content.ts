@@ -28,22 +28,24 @@ export const content_templates = {
   ) => {
     let content = "";
     content += "import React from 'react'\n";
-    content += `import { Routes, Route, Outlet, useRouter } from 'mantou/router'\n\n`;
+    content += `import { Routes, Route, Outlet, useRouter, useBlocker } from 'mantou/router'\n\n`;
 
-    const uniqueImports = [] as string[]
-    const page_layouts = pages.map((page) => {
-      if(!uniqueImports.includes(page.filePath)) {
-        uniqueImports.push(page.filePath);
-      }
-      const layouts = builder.getLayoutsByPath(page.path) as Layout[];
-      for(let layout of layouts) {
-        if(!uniqueImports.includes(layout.filePath)) {
-          uniqueImports.push(layout.filePath);
+    const uniqueImports = [] as string[];
+    const page_layouts = pages
+      .map((page) => {
+        if (!uniqueImports.includes(page.filePath)) {
+          uniqueImports.push(page.filePath);
         }
-      }
-    }).flat();
+        const layouts = builder.getLayoutsByPath(page.path) as Layout[];
+        for (let layout of layouts) {
+          if (!uniqueImports.includes(layout.filePath)) {
+            uniqueImports.push(layout.filePath);
+          }
+        }
+      })
+      .flat();
     // sort unique imports
-    uniqueImports.sort((a, b) => a.split('/').length + b.split('/').length);
+    uniqueImports.sort((a, b) => a.split("/").length + b.split("/").length);
 
     const importMap = new Map<string, string>();
     uniqueImports.forEach((filePath, index) => {
@@ -73,22 +75,38 @@ export const content_templates = {
         const [data, setData] = React.useState(_data);
         const [search, setSearch] = React.useState(_search);
         const [params, setParams] = React.useState(_params);
+        const debounceTimeout = React.useRef<NodeJS.Timeout | null>(null);
 
-        React.useEffect(() => {
-        const FETCH_AFTER_ROUTER = process?.env?.MANTOU_PUBLIC_FETCH_AFTER_ROUTER === "true";
-        if(FETCH_AFTER_ROUTER) {
-          fetch(router.pathname + "?__mantou_only_data=1").then((res) => res.json()).then((r) => {
-            setData(r.data);
-            setSearch(r.search);
-            setParams(r.params);
-          }).catch((e: any) => {});
-        }else{
-          setData(router?.state?.data || _data);
-          setSearch(router?.state?.search || _search);
-          setParams(router?.state?.params || _params);
-        }
-          
-        }, [router.pathname]);
+          React.useEffect(() => {
+            if (debounceTimeout.current) {
+              clearTimeout(debounceTimeout.current);
+            }
+
+            debounceTimeout.current = setTimeout(() => {
+              fetch(
+                router.pathname +
+                  "?__mantou_only_data=1" +
+                  "&" +
+                  new URLSearchParams(router.search).toString()
+              )
+                .then(async (res) => {
+                  const r = await res.json();
+                  setData(r.data);
+                  setSearch(r.search);
+                  setParams(r.params);
+                })
+                .catch(() => {
+                  window.location.href = "/not-found";
+                });
+            }, 10); // Adjust debounce delay as needed
+
+            return () => {
+              if (debounceTimeout.current) {
+                clearTimeout(debounceTimeout.current);
+              }
+            };
+          }, [router.pathname, router.search]);
+        
     return (
       <Routes>
       ${routesJSX}
@@ -99,6 +117,7 @@ export const content_templates = {
     return content;
   },
   "index.tsx": () => {
+    const ssl = global.__mantou_config.ssl;
     const content = `
       import React from "react";
       import ReactDOM from "react-dom/client";
@@ -111,7 +130,6 @@ export const content_templates = {
       const rootElement = document.getElementById("root");
       
       if (!rootElement) throw new Error("Root element not found");
-      
       const AppWithRouter = () => (
         <BrowserRouter>
           <App data={initialData} search={initialSearch} params={initialParams} />
@@ -122,7 +140,7 @@ export const content_templates = {
       if (process.env.NODE_ENV === "development") {
         const connectWebSocket = (maxReload = 5) => {
           let reloadAttempts = 0;
-          const ws = new WebSocket(\`ws://\${window.location.host}/__mantou_live_reload\`);
+          const ws = new WebSocket(\`${ssl ? "wss" : "ws"}://\${window.location.host}/__mantou_live_reload\`);
           
           ws.onmessage = (event) => {
             if (event.data === 'reload') {

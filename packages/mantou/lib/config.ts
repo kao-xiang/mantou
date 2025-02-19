@@ -1,7 +1,7 @@
 import _ from "lodash";
 import type { PartialServerOptions, ServerOptions } from "@/exports/types";
 import path from "path";
-import { deepMerge } from "@/utils";
+import { deepMerge, dynamicImport } from "@/utils";
 import { MantouBuilder } from "@/builder/builder";
 import Elysia from "elysia";
 
@@ -35,14 +35,13 @@ const defaultOptions: ServerOptions = {
 export const loadConfig = async (
   _options?: PartialServerOptions
 ) => {
-  const __options =deepMerge(defaultOptions, _options);
-  const loaded = await import(path.resolve(process.cwd(), "mantou.config.ts"))
-    .then((config) => config.default || config)
+  const __options = deepMerge(defaultOptions, _options);
+  const loaded = await dynamicImport(path.resolve(process.cwd(), "mantou.config.ts"))
+    .then(async (config) => config.default?.() || config)
     .catch((e) => {
       console.error("Failed to load config", e);
       return {};
     });
-
   return deepMerge(__options, loaded);
 };
 

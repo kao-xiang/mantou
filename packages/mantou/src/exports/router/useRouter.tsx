@@ -1,3 +1,4 @@
+import React, { useEffect } from "react";
 import {
   useNavigate,
   useLocation,
@@ -8,55 +9,91 @@ export const useRouter = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
-  const search = useSearchParams();
+  const [_search] = useSearchParams();
+  const [search, setSearch] = React.useState(_search);
+  useEffect(() => {
+    setSearch(Object.fromEntries(_search) as any);
+  }, [_search]);
 
   const FETCH_AFTER_ROUTER =
     process?.env?.MANTOU_PUBLIC_FETCH_AFTER_ROUTER === "true";
 
-  const push = (to: string) => {
-    !FETCH_AFTER_ROUTER
-      ? fetch(to + "?__mantou_only_data=1")
-          .then((res) => res.json())
-          .then((r) => {
-            navigate(to, {
-              state: {
-                data: r.data,
-                params: r.params,
-                search: r.search,
-              },
-            });
-          })
-          .catch((e: any) => {
-            e.status === 404 && navigate("/404")
-          })
-      : navigate(to);
+  const push = (
+    to: string,
+    options?: {
+      persistSearch?: boolean;
+      search?: Record<string, any>;
+    }
+  ) => {
+    const searchMap = new Map();
+    const prevSearch = Object.fromEntries(new URLSearchParams(location.search));
+    if (options?.persistSearch) {
+      for (let key of Object.keys(prevSearch)) {
+        const value = prevSearch[key];
+        searchMap.set(key, value);
+      }
+    }
+    if (options?.search) {
+      for (let key of Object.keys(options.search)) {
+        const value = options.search[key];
+        searchMap.set(key, value);
+      }
+    }
+
+    const hasSearch = searchMap.size > 0;
+    for (let key of searchMap.keys()) {
+      if (searchMap.get(key) === undefined) {
+        searchMap.delete(key);
+      }
+    }
+    navigate(
+      to +
+        (hasSearch
+          ? "?" + new URLSearchParams(Object.fromEntries(searchMap)).toString()
+          : "")
+    );
   };
 
-  const replace = (to: string) => {
-    !FETCH_AFTER_ROUTER
-      ? fetch(to + "?__mantou_only_data=1")
-          .then((res) => res.json())
-          .then((r) => {
-            navigate(to, {
-              state: {
-                data: r.data,
-                params: r.params,
-                search: r.search,
-              },
-              replace: true,
-            });
-          })
-          .catch((e: any) => {
-            e.status === 404 && navigate("/404")
-          })
-      : navigate(to, { replace: true });
+  const replace = (
+    to: string,
+    options?: { search?: Record<string, any>; persistSearch?: boolean }
+  ) => {
+    const searchMap = new Map();
+    const prevSearch = Object.fromEntries(new URLSearchParams(location.search));
+    if (options?.persistSearch) {
+      for (let key of Object.keys(prevSearch)) {
+        const value = prevSearch[key];
+        searchMap.set(key, value);
+      }
+    }
+    if (options?.search) {
+      for (let key of Object.keys(options.search)) {
+        const value = options.search[key];
+        searchMap.set(key, value);
+      }
+    }
+    const hasSearch = searchMap.size > 0;
+    // remove undefined values
+    for (let key of searchMap) {
+      if (searchMap.get(key) === undefined) {
+        searchMap.delete(key);
+      }
+    }
+    navigate(
+      to +
+        (hasSearch
+          ? "?" + new URLSearchParams(Object.fromEntries(searchMap)).toString()
+          : ""),
+      { replace: true }
+    );
   };
   return {
     push: push,
     replace: replace,
     pathname: location.pathname,
     params,
-    search,
+    search: search,
     state: location.state,
+    url: location.pathname + location.search,
   };
 };

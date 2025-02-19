@@ -118,7 +118,7 @@ export type Guard = ReturnType<typeof guard>;
 export type Handler = ReturnType<typeof handler>;
 
 export function acts(
-  namespace: string,
+  namespace: string | undefined,
   actions: Record<
     string,
     {
@@ -137,7 +137,7 @@ export function acts(
     }
   > = {};
   for (const key in actions) {
-    renamedActions[`${namespace}_${key}`] = actions[key];
+    renamedActions[`${namespace ? `${namespace}_` : ""}${key}`] = actions[key];
   }
   return renamedActions;
 }

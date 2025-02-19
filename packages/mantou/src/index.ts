@@ -12,6 +12,7 @@ import type {
   Store
 } from "./routes";
 import { ActionForm, ActionFormProvider } from "./action-form";
+import { astorage, getStore } from "lib/async-context";
 
 export {
   Head,
@@ -23,7 +24,9 @@ export {
   acts,
   ActionForm,
   ActionFormProvider,
-  middleware
+  middleware,
+  astorage,
+  getStore
 };
 
 export type { MetaData, GenerateMetadata, Guard, Handler, PageProps, FC, Acts, Middleware, Store };

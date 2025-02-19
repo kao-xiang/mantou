@@ -3,7 +3,12 @@ import type { MantouPlugin } from "@/exports/types";
 
 async function applyGuards(guards: TGuard[], ctx: any) {
   for (const guard of guards) {
-    await guard.handler(ctx);
+    const res = await guard.handler(ctx).catch((e: any) => {
+      console.error(e);
+    });
+    if(res){
+      return res
+    }
   }
 }
 
@@ -13,19 +18,32 @@ export const mantouGuard = () => {
     onRequest: {
       async beforeHandle(ctx, props) {
         let routeType = "routes" as "routes" | "page";
-        let route = props.organs.getRouteByPath(ctx.path, ctx.request.method) as any;
+        let route = props.organs.getRouteByPath(
+          ctx.path,
+          ctx.request.method
+        ) as any;
         if (!route) {
           route = props.organs.getPageByPath(ctx.path);
           routeType = "page";
         }
 
-        const middlewares = props.organs.getMiddlewaresByPath(ctx.path, ctx.request.method);
+        const middlewares = props.organs.getMiddlewaresByPath(
+          ctx.path,
+          ctx.request.method
+        );
 
         for (const middleware of middlewares) {
-          applyGuards(middleware.guards || [], ctx);
+          const guardRes = await applyGuards(middleware.guards || [], ctx);
+          if(guardRes){
+            return guardRes
+          }
         }
-
-        applyGuards(route.guards || [], ctx);
+        if (route?.guards) {
+          const guardRes = await applyGuards(route?.guards || [], ctx);
+          if(guardRes){
+            return guardRes
+          }
+        }
       },
     },
   } as MantouPlugin;

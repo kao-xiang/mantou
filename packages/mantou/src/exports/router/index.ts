@@ -11,6 +11,16 @@ import {
   useBeforeUnload,
 } from "react-router";
 
+const Blocker = () => {
+  useBlocker((tx) => {
+    if (!window.confirm("Are you sure you want to go back?")) {
+      return false;
+    }
+    return true;
+  });
+  return null;
+}
+
 export {
   Routes,
   Route,
@@ -22,4 +32,5 @@ export {
   useBlocker,
   useBeforeUnload,
   Link,
+  Blocker
 };

@@ -4,8 +4,6 @@ import { watch } from "chokidar";
 import pc from "picocolors";
 import Elysia from "elysia";
 import { startServer } from "lib/server";
-import { buildApp, loadConfig } from "lib/config";
-import { build } from "@/builder";
 import { logger } from "lib/logger";
 
 let currentServer: Elysia | null = null;
@@ -35,7 +33,7 @@ program
     process.env.NODE_ENV = "development";
     await restartServer({ isDev: true });
 
-    const watcher = watch("./src", {
+    const watcher = watch(["./src", "mantou.config.ts"], {
       ignored: /(^|[\/\\])\../,
       persistent: true,
       ignoreInitial: true,
