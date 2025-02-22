@@ -40,7 +40,7 @@ export const loadConfig = async (
 ) => {
   const __options = deepMerge(defaultOptions, _options);
   const loaded = await dynamicImport(path.resolve(process.cwd(), "mantou.config.ts"))
-    .then(async (config) => config?.default?.() || config)
+    .then(async (config) => typeof config.default === "function" ? await config.default() : config.default)
     .catch((e) => {
       console.log("Failed to load config", e);
       return {};
