@@ -32,7 +32,7 @@ const apply = async (config: ServerOptions) => {
     const pluginNames = Object.keys(plugins);
     const pluginParams = Object.values(plugins);
     const cssFiles = glob.sync(
-      path.resolve(process.cwd(), "src/**/global.{css,scss,sass}")
+      path.resolve(process.cwd(), global.__mantou_config.appDir, "**/global.{css,scss,sass}")
     );
     const cssContent = await Promise.all(
       cssFiles.map(async (file) => {

@@ -71,16 +71,34 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
     this.config = config;
   }
 
+  private shouldProcess(type: "page" | "route") {
+    if (this.config.mode === "framework") {
+      return false;
+    }
+    if (this.config.mode === "api" && type === "page") {
+      return false;
+    }
+    if (this.config.mode === "web" && type === "route") {
+      return false;
+    }
+    if (this.config.mode === "both") {
+      return true;
+    }
+  }
+
   public build = async () => {
     const outputDir = upath.resolve(process.cwd(), this.config.outputDir);
-
-    await this.processPages();
-    await this.processLayouts();
-    await this.processRoutes();
-    await this.processActions();
-    this.middlewares = await this.processMiddlewares();
-    this.errorPage = await this.processErrorPage();
-    this.notFoundPage = await this.processNotFoundPage();
+    if (this.shouldProcess("route")) {
+      this.middlewares = await this.processMiddlewares();
+      await this.processRoutes();
+      await this.processActions();
+    }
+    if (this.shouldProcess("page")) {
+      await this.processPages();
+      await this.processLayouts();
+      this.errorPage = await this.processErrorPage();
+      this.notFoundPage = await this.processNotFoundPage();
+    }
 
     // await this.processWsRoutes();
     // await this.processMiddlewares();
@@ -105,13 +123,15 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
       outdir: path.resolve(outputDir, "client"),
     });
 
-    await Bun.build({
-      entrypoints: [
-        path.resolve(this.config.appDir, "error.tsx"),
-        path.resolve(this.config.appDir, "404.tsx"),
-      ],
-      outdir: path.resolve(outputDir, "client"),
-    });
+    if(this.config.mode !== "framework") {
+      await Bun.build({
+        entrypoints: [
+          path.resolve(this.config.appDir, this.config.errorPageDir, "error.tsx"),
+          path.resolve(this.config.appDir, this.config.errorPageDir, "404.tsx"),
+        ],
+        outdir: path.resolve(outputDir, "client"),
+      });
+    }
 
     global.__mantou_App_tsx = await dynamicImport(
       path.resolve(outputDir, "client", `App.tsx`)
@@ -161,15 +181,34 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
     } as Route);
   }
 
-  public async addPage(props: { path: string; filePath: string }) {
+  public async addPage(props: { path?: string; filePath: string }) {
     const module = (await dynamicImport(props.filePath)).default;
+    let _path = props.path || module.path;
+    if (!_path) {
+      _path = this.filePathToRoutePath(props.filePath);
+    }
     this.pages.push({
       filePath: props.filePath,
-      path: props.path,
+      path: _path,
       metadata: module.metadata,
       getServerSideData: module.getServerSideData?.handler,
       generateMetadata: module.generateMetadata,
       Component: module,
+    });
+  }
+
+  public async addLayout(props: { path?: string; filePath: string }) {
+    const module = (await dynamicImport(props.filePath)).default;
+    let _path = props.path || module.path;
+    if (!_path) {
+      _path = this.filePathToRoutePath(props.filePath);
+    }
+    this.layouts.push({
+      filePath: props.filePath,
+      metadata: module.metadata,
+      path: this.filePathToRoutePath(props.filePath),
+      children: module.children,
+      generateMetadata: module.generateMetadata,
     });
   }
 
@@ -180,7 +219,10 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
   //   ------------------------------
 
   public async _applyMiddlewares(path: string, ctx: any): Promise<any> {
-    const middlewares = this.getMiddlewaresByPath(path, ctx.request?.method?.toLowerCase());
+    const middlewares = this.getMiddlewaresByPath(
+      path,
+      ctx.request?.method?.toLowerCase()
+    );
     const next = async () => {
       const middleware = middlewares.shift();
       if (middleware) {
@@ -234,8 +276,12 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
         async (_ctx: any) => {
           return astorage?.run({ ctx: _ctx }, async () => {
             const store = astorage?.getStore() as any;
+            const body = await _ctx.request?.json().catch(() => ({}));
             const ctx = store.ctx;
-            const newCtx = _.merge({}, ctx, _ctx);
+            const newCtx = _.merge({
+              body: body,
+              headers: _ctx.request.headers.toJSON(),
+            }, ctx, _ctx);
             const middlewareRes = await this._applyMiddlewares(
               route.path,
               newCtx
@@ -243,7 +289,17 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
             if (middlewareRes) {
               return middlewareRes;
             }
-            return route.handler(newCtx);
+            return route.handler(newCtx).catch((e: any) => {
+              logger.error(e);
+              _ctx.set.status = e.status || e?.code || 500;
+              _ctx.set.headers = {
+                "Content-Type": "application/json",
+              };
+              return {
+                error: e,
+                message: e.response?.message || e.message || "Internal Server Error",
+              }
+            });
           });
         },
         {
@@ -256,7 +312,6 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
 
   public applyPages() {
     this.pages.forEach((page) => {
-      // logger.success(`Page: ${page.path}`);
       this.app.get(
         page.path,
         async (ctx: any) => {
@@ -353,11 +408,13 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
 
   private findMatchingLayouts(page: Page, layouts: Layout[]): string[] {
     const pageGroup = this.getRouteGroup(page.filePath);
-    const pagePath = page.path;
+    const pageFilePath = removeFilenameFromPath(page.filePath);
 
     const rootLayout = layouts.find(
       (layout) =>
-        this.getRouteGroup(layout.filePath) === pageGroup && layout.path === "/"
+      {
+        return this.getRouteGroup(layout.filePath) === pageGroup && pageFilePath === removeFilenameFromPath(layout.filePath)
+      }
     );
 
     const matchingLayouts = layouts
@@ -366,9 +423,8 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
 
         const layoutGroup = this.getRouteGroup(layout.filePath);
         if (layoutGroup !== pageGroup) return false;
-
         return (
-          pagePath === layout.path || pagePath.startsWith(layout.path + "/")
+          pageFilePath === removeFilenameFromPath(layout.filePath) || pageFilePath.startsWith(removeFilenameFromPath(layout.filePath))
         );
       })
       .sort((a, b) => b.path.length - a.path.length)
@@ -405,7 +461,8 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
     const parsedPath = upath.parse(filePath);
     const appPath = path.resolve(process.cwd(), this.config.appDir);
     const relativePath = upath.relative(appPath, parsedPath.dir);
-    return normalizePath(relativePath);
+    const _path = normalizePath(relativePath);
+    return _path;
   }
 
   //   ------------------------------
@@ -446,7 +503,12 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
 
   public async processErrorPage() {
     const errorPage = await dynamicImport(
-      path.resolve(process.cwd(), global.__mantou_config.appDir, "error.tsx")
+      path.resolve(
+        process.cwd(),
+        global.__mantou_config.appDir,
+        this.config.errorPageDir,
+        "error.tsx"
+      )
     )
       .then((module) => module.default)
       .catch(() => ErrorPage);
@@ -454,6 +516,7 @@ export class MantouBuilder<M extends HandlerConfig, R extends HandlerConfig> {
       filePath: path.resolve(
         process.cwd(),
         global.__mantou_config.appDir,
+        this.config.errorPageDir,
         "error.tsx"
       ),
       path: "/error",

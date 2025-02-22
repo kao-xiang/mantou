@@ -1,5 +1,6 @@
 import React from "react";
 import dotenv from "dotenv";
+import path from "path";
 dotenv.config();
 import { Elysia, NotFoundError, redirect } from "elysia";
 import { logger } from "./logger";
@@ -38,8 +39,8 @@ function startDevServer() {
 
 export const startServer = async (_options?: PartialServerOptions) => {
   const oldErrorLog = console.error;
-  console.error = (msg: string) => {
-    if (msg?.startsWith?.("NOT_FOUND")) {
+  console.error = (...msg) => {
+    if (msg[0]?.startsWith?.("NOT_FOUND")) {
       return;
     }
     oldErrorLog(msg);
@@ -53,6 +54,11 @@ export const startServer = async (_options?: PartialServerOptions) => {
   );
   global.__mantou_config = __options;
   global.__mantou_app = _app;
+
+  // if outputDir is equal appDir then throw error
+  if (path.resolve(__options.outputDir) === path.resolve(__options.appDir)) {
+    throw new Error("outputDir can't be equal to appDir");
+  }
 
   await cleanOutputDir();
 

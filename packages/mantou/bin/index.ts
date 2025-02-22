@@ -32,8 +32,8 @@ program
   .action(async () => {
     process.env.NODE_ENV = "development";
     await restartServer({ isDev: true });
-
-    const watcher = watch(["./src", "mantou.config.ts"], {
+    const appDir = global.__mantou_config.appDir;
+    const watcher = watch([appDir, "mantou.config.ts", "src"], {
       ignored: /(^|[\/\\])\../,
       persistent: true,
       ignoreInitial: true,

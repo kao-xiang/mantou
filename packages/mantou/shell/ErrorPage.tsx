@@ -3,7 +3,7 @@ export const ErrorPage = (props: any) => {
   return (
     <div>
       <h1>Error</h1>
-      <pre>{JSON.stringify(data.error, null, 2)}</pre>
+      <pre>{JSON.stringify(data?.error, null, 2)}</pre>
     </div>
   );
 };

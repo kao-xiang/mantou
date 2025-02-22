@@ -31,6 +31,11 @@ export class MantouPlugin {
   onRequest?: Partial<Record<OnRequestType, OnRequestHandler>> = {};
 }
 
+export interface RewriteBase {
+  from: string;
+  to: string;
+}
+
 export interface ServerOptions<Path extends string = any> {
   isDev: boolean;
   onlyBuild: boolean;
@@ -45,13 +50,21 @@ export interface ServerOptions<Path extends string = any> {
   cors: {
     origin: string | string[];
   };
+  replace: RewriteBase[];
   outputDir: string;
   apiPrefix: string;
   plugins: MantouPlugin[];
   actionPath: string;
+  errorPageDir: string;
+  // api -> api only | web -> web only | both -> both | framework -> no api, no framework, only plugins
+  mode: "api" | "web" | "both" | "framework";
 }
 
-export type PartialServerOptions = Partial<ServerOptions>;
+type DeepPartial<T> = T extends object ? {
+  [P in keyof T]?: DeepPartial<T[P]>;
+} : T;
+
+export type PartialServerOptions = DeepPartial<ServerOptions>;
 
 export interface Store {
   [key: string]: any;

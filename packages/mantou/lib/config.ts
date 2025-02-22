@@ -21,6 +21,7 @@ const defaultOptions: ServerOptions = {
       },
     },
   },
+  replace: [],
   appDir: "./src/app",
   configPath: "./mantou.config.ts",
   outputDir: "./dist",
@@ -30,6 +31,8 @@ const defaultOptions: ServerOptions = {
   wsDir: "./ws",
   plugins: [],
   actionPath: "/_",
+  errorPageDir: ".",
+  mode: "both"
 };
 
 export const loadConfig = async (
@@ -39,7 +42,7 @@ export const loadConfig = async (
   const loaded = await dynamicImport(path.resolve(process.cwd(), "mantou.config.ts"))
     .then(async (config) => config.default?.() || config)
     .catch((e) => {
-      console.error("Failed to load config", e);
+      console.log("Failed to load config", e);
       return {};
     });
   return deepMerge(__options, loaded);
